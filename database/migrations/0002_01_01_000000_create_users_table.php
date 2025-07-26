@@ -21,7 +21,7 @@ return new class extends Migration
             $table->date('birthday');
             $table->string('phone');
             $table->string('address');
-            $table->boolean('active');
+            $table->boolean('active')->default(true);
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
