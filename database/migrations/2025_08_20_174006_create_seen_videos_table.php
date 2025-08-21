@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
-            $table->id();
-             $table->string('name')->unique(); 
-            $table->string('icon')->nullable(); 
-            $table->boolean('active')->default(true); 
+        Schema::create('seen_videos', function (Blueprint $table) {
+         $table->id();
+            $table->date('date');
+            $table->foreignId('student_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('video_id')->constrained('videos')->onDelete('cascade');
             $table->timestamps();
         });
     }
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('seen_videos');
     }
 };

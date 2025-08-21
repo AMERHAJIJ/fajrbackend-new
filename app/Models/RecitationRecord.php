@@ -5,12 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class StudentQuiz extends Model
+class RecitationRecord  extends Model
 {
     protected $guarded = [];
 
     /**
-     * Get the student that owns the student quiz record.
+     * Get the student that owns the recitation record.
      */
     public function student(): BelongsTo
     {
@@ -18,10 +18,10 @@ class StudentQuiz extends Model
     }
 
     /**
-     * Get the quiz that owns the student quiz record.
+     * Get the surah that the recitation record belongs to.
      */
-    public function quiz(): BelongsTo
+    public function surah(): BelongsTo
     {
-        return $this->belongsTo(Quiz::class, 'quiz_id', 'id');
+        return $this->belongsTo(Surah::class, 'surah_id', 'id');
     }
 }

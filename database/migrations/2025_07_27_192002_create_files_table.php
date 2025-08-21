@@ -13,8 +13,19 @@ return new class extends Migration
     {
         Schema::create('files', function (Blueprint $table) {
             $table->id();
+$table->string('name');
+            $table->text('description')->nullable();
+            $table->string('image')->nullable();
+            $table->string('link');
+            $table->boolean('active')->default(true);
+            $table->unsignedBigInteger('visits')->default(0);
+            $table->boolean('showInHomePage')->default(false);
+            $table->string('object_type'); // category or video
+            $table->unsignedBigInteger('object_id');
             $table->timestamps();
-        });
+
+            // تحسين الأداء لعلاقات polymorphic
+            $table->index(['object_type', 'object_id']);        });
     }
 
     /**

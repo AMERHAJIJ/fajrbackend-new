@@ -18,7 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('surah_id');
             $table->unsignedBigInteger('student_id');
 
-            $table->foreign('surah_id')->references('id')->on('surahs')->onDelete('cascade');
+            $table->foreign('surah_id')->references('id')->on('sur ahs')->onDelete('cascade');
              $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade'); 
             $table->timestamps();
         });
