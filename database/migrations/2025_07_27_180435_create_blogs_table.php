@@ -20,7 +20,7 @@ return new class extends Migration
             $table->boolean('showInHomePage')->default(false);
             $table->boolean('active')->default(true);
             $table->unsignedBigInteger('category_id');
-            $table->foreign('category_id')->references('id')->on('Category')->onDelete('cascade');
+            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
             $table->timestamps();
         });
     }

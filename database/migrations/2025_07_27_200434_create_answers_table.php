@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('answers', function (Blueprint $table) {
             $table->id();
              $table->string('title'); 
-             $table->boolean('isCorrect')->default(false);#
+             $table->boolean('isCorrect')->default(false);
             $table->foreignId('question_id')->constrained('questions')->onDelete('cascade');
 
             $table->timestamps();
@@ -22,7 +22,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Reverse the migrations.  
      */
     public function down(): void
     {

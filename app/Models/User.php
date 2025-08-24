@@ -29,9 +29,7 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Get the attendance records for the student.
-     */
+   
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class, 'student_id', 'id');

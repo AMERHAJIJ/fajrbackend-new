@@ -18,14 +18,7 @@ class Subject extends Model
         return $this->hasMany(Attendance::class, 'subject_id', 'id');
     }
 
-    /**
-     * Get the recitation records for the subject.
-     */
-    public function recitationRecords(): HasMany
-    {
-        return $this->hasMany(RecitationRecord::class, 'surah_id', 'id');
-    }
-    
+  
     /**
      * Get the students for the subject.
      */

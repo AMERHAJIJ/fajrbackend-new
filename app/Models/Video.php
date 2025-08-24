@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\hasOne;
+
 
 class Video extends Model
 {
@@ -21,9 +23,9 @@ class Video extends Model
     /**
      * Get the quizzes for the video.
      */
-    public function quizzes(): HasMany
+    public function quizzes(): hasOne
     {
-        return $this->hasMany(Quiz::class, 'video_id', 'id');
+        return $this->hasOne(Quiz::class, 'video_id', 'id');
     }
 
     /**
