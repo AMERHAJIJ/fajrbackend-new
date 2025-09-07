@@ -1,0 +1,34 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Homework extends Model
+{
+    protected $table = 'homeworks';
+    
+    protected $guarded = [];
+
+    protected $casts = [
+        'due_date' => 'date',
+        'active' => 'boolean',
+    ];
+
+    /**
+     * Get the subject that owns the homework.
+     */
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class, 'subject_id', 'id');
+    }
+
+    /**
+     * Get the teacher that owns the homework.
+     */
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'teacher_id', 'id');
+    }
+}

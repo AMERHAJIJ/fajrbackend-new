@@ -90,4 +90,12 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Subject::class, 'subject_teachers', 'teacher_id', 'subject_id');
     }
+
+    /**
+     * Get the homeworks assigned by the teacher.
+     */
+    public function homeworks(): HasMany
+    {
+        return $this->hasMany(Homework::class, 'teacher_id', 'id');
+    }
 }

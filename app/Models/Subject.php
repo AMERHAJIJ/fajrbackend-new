@@ -28,7 +28,31 @@ class Subject extends Model
     }
 
     public function teachers(): BelongsToMany
-{
-    return $this->belongsToMany(User::class, 'subject_teachers', 'subject_id', 'teacher_id');
-}
+    {
+        return $this->belongsToMany(User::class, 'subject_teachers', 'subject_id', 'teacher_id');
+    }
+
+    /**
+     * Get the student subject records for the subject.
+     */
+    public function studentSubjects(): HasMany
+    {
+        return $this->hasMany(StudentSubject::class, 'subject_id', 'id');
+    }
+
+    /**
+     * Get the subject teacher records for the subject.
+     */
+    public function subjectTeachers(): HasMany
+    {
+        return $this->hasMany(SubjectTeacher::class, 'subject_id', 'id');
+    }
+
+    /**
+     * Get the homeworks for the subject.
+     */
+    public function homeworks(): HasMany
+    {
+        return $this->hasMany(Homework::class, 'subject_id', 'id');
+    }
 }
