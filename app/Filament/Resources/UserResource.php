@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Exports\StudentReportExport;
 use App\Filament\Resources\UserResource\Pages;
+use Illuminate\Http\Response;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -12,6 +14,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Hash;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Notifications\Notification;
 
 class UserResource extends Resource
 {
@@ -131,6 +135,71 @@ class UserResource extends Resource
                 }
                 return $query->whereRaw('1 = 0'); // لا يرى أحد
             })
+            ->headerActions([
+                Tables\Actions\Action::make('export_students')
+                    ->label('تصدير تقرير الطلاب')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('success')
+                    ->action(function ($livewire) {
+                        $date = now()->format('Y-m-d');
+                        $subjectId = $livewire->tableFilters['subject_id']['value'] ?? null;
+                        
+                        // Validate if subject is selected (if needed)
+                        if (!$subjectId) {
+                            Notification::make()
+                                ->title('خطأ')
+                                ->body('يجب اختيار مادة أولاً')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+                        
+                        // Create and return the Excel file for download
+                        $export = new StudentReportExport($subjectId, $date);
+                        return $export->download();
+                    })
+                    ->visible(fn () => auth()->user()->can('export students')),
+            ])
+            ->filters([
+                \Filament\Tables\Filters\SelectFilter::make('subject_id')
+                    ->label('المادة')
+                    ->relationship('subjectsAsStudent', 'title')
+                    ->searchable()
+                    ->preload()
+                    ->visible(fn () => auth()->user()->can('export students')),
+                Tables\Filters\TernaryFilter::make('active')
+                    ->label('نشط')
+                    ->boolean()
+                    ->trueLabel('نشط فقط')
+                    ->falseLabel('غير نشط فقط'),
+                Tables\Filters\Filter::make('created_at')
+                    ->form([
+                        Forms\Components\DatePicker::make('created_from')
+                            ->label('من تاريخ'),
+                        Forms\Components\DatePicker::make('created_until')
+                            ->label('إلى تاريخ'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['created_from'] ?? null,
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['created_until'] ?? null,
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                            );
+                    })
+            ])
+            ->actions([
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ])
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('الصورة')
@@ -159,40 +228,6 @@ class UserResource extends Resource
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                Tables\Filters\TernaryFilter::make('active')
-                    ->label('نشط')
-                    ->boolean()
-                    ->trueLabel('نشط فقط')
-                    ->falseLabel('غير نشط فقط'),
-                Tables\Filters\Filter::make('created_at')
-                    ->form([
-                        Forms\Components\DatePicker::make('created_from')
-                            ->label('من تاريخ'),
-                        Forms\Components\DatePicker::make('created_until')
-                            ->label('إلى تاريخ'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when(
-                                $data['created_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
-                            )
-                            ->when(
-                                $data['created_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
-                            );
-                    })
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
     }
 

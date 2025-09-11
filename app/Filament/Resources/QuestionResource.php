@@ -106,6 +106,7 @@ class QuestionResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                \App\Filament\Resources\QuestionResource\Actions\ExportToWhatsAppAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

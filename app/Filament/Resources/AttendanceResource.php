@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Forms\Components\Hidden;
 
 class AttendanceResource extends Resource
 {
@@ -33,33 +34,6 @@ class AttendanceResource extends Resource
             ->schema([
                 Forms\Components\Section::make('معلومات الحضور')
                     ->schema([
-                        Forms\Components\CheckboxList::make('present_students')
-                            ->label('الطلاب الحاضرين')
-                            ->options(function (callable $get) {
-                                $subjectId = $get('subject_id');
-                                if (!$subjectId) {
-                                    return [];
-                                }
-                                
-                                if (auth()->user()->hasRole('teacher')) {
-                                    // المعلم يرى طلاب المادة التي يدرسها فقط
-                                    return User::role('student')
-                                        ->whereHas('subjectsAsStudent', function ($query) use ($subjectId) {
-                                            $query->where('subject_id', $subjectId);
-                                        })
-                                        ->pluck('name', 'id');
-                                }
-                                return User::role('student')
-                                    ->whereHas('subjectsAsStudent', function ($query) use ($subjectId) {
-                                        $query->where('subject_id', $subjectId);
-                                    })
-                                    ->pluck('name', 'id');
-                            })
-                            ->searchable()
-                            ->bulkToggleable()
-                            ->columns(3)
-                            ->helperText('ضع علامة على الطلاب الحاضرين فقط')
-                            ->dehydrated(false), // لا يتم حفظه في قاعدة البيانات
                         Forms\Components\Select::make('subject_id')
                             ->label('المادة')
                             ->relationship('subject', 'title')
@@ -69,20 +43,145 @@ class AttendanceResource extends Resource
                             ->reactive()
                             ->options(function () {
                                 if (auth()->user()->hasRole('teacher')) {
-                                    // المعلم يرى المواد التي يدرسها فقط
-                                    return Subject::whereHas('teachers', function ($query) {
+                                    return \App\Models\Subject::whereHas('teachers', function ($query) {
                                         $query->where('teacher_id', auth()->id());
                                     })->pluck('title', 'id');
                                 }
-                                return Subject::pluck('title', 'id');
+                                return \App\Models\Subject::pluck('title', 'id');
                             }),
+                        
+                        Forms\Components\Select::make('selected_students')
+                            ->label('اختر الطلاب')
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->options(function (callable $get) {
+                                $subjectId = $get('subject_id');
+                                if (!$subjectId) {
+                                    return [];
+                                }
+                                
+                                return \App\Models\User::role('student')
+                                    ->whereHas('subjectsAsStudent', function ($query) use ($subjectId) {
+                                        $query->where('subject_id', $subjectId);
+                                    })
+                                    ->pluck('name', 'id');
+                            })
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                // Initialize attendance status for selected students
+                                $attendance = [];
+                                foreach ($state as $studentId) {
+                                    $attendance[$studentId] = true; // Default to present
+                                }
+                                $set('attendance_status', $attendance);
+                            }),
+                        
+                        \Filament\Forms\Components\Group::make()
+                            ->label('حالة الحضور للطلاب المحددين')
+                            ->visible(fn (callable $get) => !empty($get('selected_students')))
+                            ->schema(function (callable $get) {
+                                $selectedStudents = $get('selected_students') ?? [];
+                                $attendanceStatus = $get('attendance_status') ?? [];
+                                
+                                if (empty($selectedStudents)) {
+                                    return [];
+                                }
+                                
+                                // Ensure all selected students have a status
+                                foreach ($selectedStudents as $studentId) {
+                                    if (!array_key_exists($studentId, $attendanceStatus)) {
+                                        $attendanceStatus[$studentId] = true; // Default to present
+                                    }
+                                }
+                                
+                                // Update the form state with any new defaults
+                                if ($attendanceStatus !== $get('attendance_status')) {
+                                    $this->callAfterStateUpdated(function () use ($attendanceStatus) {
+                                        $this->getLivewire()->set('data.attendance_status', $attendanceStatus);
+                                    });
+                                }
+                                
+                                $studentRecords = \App\Models\User::whereIn('id', $selectedStudents)->get();
+                                
+                                return $studentRecords->map(function ($student) use ($attendanceStatus) {
+                                    return \Filament\Forms\Components\Toggle::make('attendance_status.' . $student->id)
+                                        ->label($student->name)
+                                        ->default($attendanceStatus[$student->id] ?? true)
+                                        ->onColor('success')
+                                        ->offColor('danger')
+                                        ->inline(false);
+                                })->toArray();
+                            }),
+                        
                         Forms\Components\DatePicker::make('date')
                             ->label('تاريخ الحضور')
                             ->required()
                             ->default(now())
                             ->maxDate(now()),
+                            
+                        Forms\Components\Hidden::make('attendance_status')
                     ])->columns(2),
             ]);
+    }
+
+    protected static function handleRecordCreation(array $data): Model 
+    {
+        $attendanceStatus = $data['attendance_status'] ?? [];
+        $selectedStudents = $data['selected_students'] ?? [];
+        
+        // Make sure we have attendance status for all selected students
+        foreach ($selectedStudents as $studentId) {
+            if (!array_key_exists($studentId, $attendanceStatus)) {
+                $attendanceStatus[$studentId] = true; // Default to present
+            }
+        }
+        
+        $subjectId = $data['subject_id'];
+        $date = $data['date'];
+        
+        // Remove unneeded fields
+        unset($data['attendance_status'], $data['selected_students']);
+        
+        $attendances = [];
+        
+        // Process each student's attendance
+        foreach ($attendanceStatus as $studentId => $status) {
+            if (!in_array($studentId, $selectedStudents)) {
+                continue; // Skip if student is not in the selected students
+            }
+            
+            // Check if attendance already exists for this student, subject, and date
+            $existing = \App\Models\Attendance::where('student_id', $studentId)
+                ->where('subject_id', $subjectId)
+                ->whereDate('date', $date)
+                ->first();
+            
+            if ($existing) {
+                // Update existing record
+                $existing->update(['status' => $status]);
+                $attendances[] = $existing;
+            } else {
+                // Create new record
+                $attendances[] = new \App\Models\Attendance([
+                    'student_id' => $studentId,
+                    'subject_id' => $subjectId,
+                    'date' => $date,
+                    'status' => $status,
+                ]);
+            }
+        }
+        
+        // Save all attendance records
+        foreach ($attendances as $attendance) {
+            if (!$attendance->exists) {
+                $attendance->save();
+            }
+        }
+        
+        // Return the first attendance record (for Filament)
+        return $attendances[0] ?? new \App\Models\Attendance($data);
     }
 
     public static function table(Table $table): Table

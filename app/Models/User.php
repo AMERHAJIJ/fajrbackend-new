@@ -80,7 +80,8 @@ class User extends Authenticatable
      */
     public function subjectsAsStudent(): BelongsToMany
     {
-        return $this->belongsToMany(Subject::class, 'student_subjects', 'student_id', 'subject_id');
+        return $this->belongsToMany(Subject::class, 'student_subjects', 'student_id', 'subject_id')
+            ->select('subjects.*');
     }
 
     /**
@@ -88,7 +89,8 @@ class User extends Authenticatable
      */
     public function subjectsAsTeacher(): BelongsToMany
     {
-        return $this->belongsToMany(Subject::class, 'subject_teachers', 'teacher_id', 'subject_id');
+        return $this->belongsToMany(Subject::class, 'subject_teachers', 'teacher_id', 'subject_id')
+            ->select('subjects.*');
     }
 
     /**

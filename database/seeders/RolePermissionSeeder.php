@@ -103,6 +103,9 @@ class RolePermissionSeeder extends Seeder
             'create homeworks',
             'edit homeworks',
             'delete homeworks',
+            
+            // تصدير بيانات الطلاب
+            'export students',
         ];
 
         foreach ($permissions as $permission) {

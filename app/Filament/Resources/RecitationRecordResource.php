@@ -4,13 +4,13 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\RecitationRecordResource\Pages;
 use App\Models\RecitationRecord;
-use App\Models\Surah;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Filament\Resources\QuestionResource\Actions\ExportToWhatsAppAction;
 use Illuminate\Database\Eloquent\Builder;
 
 class RecitationRecordResource extends Resource
@@ -43,6 +43,17 @@ class RecitationRecordResource extends Resource
                                 if (auth()->user()->hasRole('student')) {
                                     return [auth()->id() => auth()->user()->name];
                                 }
+                                
+                                if (auth()->user()->hasRole('teacher')) {
+                                    return User::role('student')
+                                        ->whereHas('subjectsAsStudent', function($query) {
+                                            $query->whereHas('teachers', function($q) {
+                                                $q->where('teacher_id', auth()->id());
+                                            });
+                                        })
+                                        ->pluck('name', 'id');
+                                }
+                                
                                 return User::role('student')->pluck('name', 'id');
                             })
                             ->default(auth()->user()->hasRole('student') ? auth()->id() : null),
@@ -173,6 +184,10 @@ class RecitationRecordResource extends Resource
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
+            ->headerActions([
+                ExportToWhatsAppAction::make()
+                    ->label('واتساب'), // زر واتساب يظهر فوق الجدول
+            ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
@@ -185,9 +200,14 @@ class RecitationRecordResource extends Resource
     {
         $query = parent::getEloquentQuery();
         
-        // إذا كان المستخدم طالب، عرض تسجيلاته فقط
+        if (auth()->user()->hasRole('teacher')) {
+            return $query->whereHas('student.subjectsAsStudent.teachers', function($q) {
+                $q->where('teacher_id', auth()->id());
+            });
+        }
+        
         if (auth()->user()->hasRole('student')) {
-            $query->where('student_id', auth()->id());
+            return $query->where('student_id', auth()->id());
         }
         
         return $query;
@@ -195,9 +215,7 @@ class RecitationRecordResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array

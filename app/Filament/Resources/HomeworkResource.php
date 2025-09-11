@@ -38,7 +38,7 @@ class HomeworkResource extends Resource
                             ->required()
                             ->maxLength(255),
                         Forms\Components\Textarea::make('description')
-                            ->label('وصف الواجب')
+                            ->label('فوائد الدرس')
                             ->rows(3)
                             ->nullable(),
                         Forms\Components\TextInput::make('lesson_name')
@@ -58,13 +58,29 @@ class HomeworkResource extends Resource
                             ->relationship('subject', 'title')
                             ->required()
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->options(function () {
+                                $user = auth()->user();
+                                if ($user->hasRole('teacher')) {
+                                    return $user->subjectsAsTeacher()->pluck('title', 'id');
+                                }
+                                return \App\Models\Subject::pluck('title', 'id');
+                            })
+                            ->reactive(),
                         Forms\Components\Select::make('teacher_id')
                             ->label('المعلم المسؤول')
-                            ->relationship('teacher', 'name')
-                            ->required()
+                            ->options(function () {
+                                $user = auth()->user();
+                                if ($user->hasRole('teacher')) {
+                                    return [$user->id => $user->name];
+                                }
+                                return [null => 'اختر المعلم'] + \App\Models\User::role('teacher')->pluck('name', 'id')->toArray();
+                            })
+                            ->default(fn () => auth()->user()->hasRole('teacher') ? auth()->id() : null)
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->nullable()
+                            ->disabled(fn () => auth()->user()->hasRole('teacher')),
                         Forms\Components\DatePicker::make('due_date')
                             ->label('تاريخ التسليم')
                             ->native(false)
@@ -167,6 +183,7 @@ class HomeworkResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                \App\Filament\Resources\HomeworkResource\Actions\ExportHomeworkToWhatsApp::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -181,13 +198,15 @@ class HomeworkResource extends Resource
         $user = auth()->user();
         $query = parent::getEloquentQuery();
 
-        // إذا كان المستخدم معلم، عرض واجباته فقط
-        if ($user->hasRole('Teacher')) {
-            $query->where('teacher_id', $user->id);
+        // If user is teacher, show only homeworks for their subjects
+        if ($user->hasRole('teacher')) {
+            $query->whereHas('subject.subjectTeachers', function ($q) use ($user) {
+                $q->where('teacher_id', $user->id);
+            });
         }
 
-        // إذا كان المستخدم طالب، عرض واجبات المواد المسجل فيها فقط
-        if ($user->hasRole('Student')) {
+        // If user is student, show only homeworks for their registered subjects
+        if ($user->hasRole('student')) {
             $query->whereHas('subject.studentSubjects', function ($q) use ($user) {
                 $q->where('student_id', $user->id);
             });
