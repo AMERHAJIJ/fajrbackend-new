@@ -13,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class AnswerResource extends Resource
 {
@@ -134,21 +135,21 @@ class AnswerResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()->can('view quizzes');
+        return Auth::user()->roles->whereIn('name', ['admin', 'teacher'])->isNotEmpty();
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()->can('create quizzes');
+        return Auth::user()->roles->whereIn('name', ['admin', 'teacher'])->isNotEmpty();
     }
 
     public static function canEdit($record): bool
     {
-        return auth()->user()->can('edit quizzes');
+        return Auth::user()->roles->whereIn('name', ['admin', 'teacher'])->isNotEmpty();
     }
 
     public static function canDelete($record): bool
     {
-        return auth()->user()->can('delete quizzes');
+        return Auth::user()->roles->contains('name', 'admin');
     }
 }

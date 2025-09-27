@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class BlogResource extends Resource
 {
@@ -166,16 +167,22 @@ class BlogResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()->can('create blogs');
+        $user = Auth::user();
+        // can() method is provided by Spatie Permission HasRoles trait
+        return $user && $user->can('create blogs');
     }
 
     public static function canEdit($record): bool
     {
-        return auth()->user()->can('edit blogs');
+        $user = Auth::user();
+        // can() method is provided by Spatie Permission HasRoles trait
+        return $user && $user->can('edit blogs');
     }
 
     public static function canDelete($record): bool
     {
-        return auth()->user()->can('delete blogs');
+        $user = Auth::user();
+        // can() method is provided by Spatie Permission HasRoles trait
+        return $user && $user->can('delete blogs');
     }
 }

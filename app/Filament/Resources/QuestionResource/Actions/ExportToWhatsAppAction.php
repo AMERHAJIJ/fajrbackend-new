@@ -18,7 +18,7 @@ class ExportToWhatsAppAction
             ->color('success')
             ->tooltip('مشاركة تقرير التسميع عبر واتساب')
             ->form([
-                Forms\Components\Select::make('students')
+                \Filament\Forms\Components\Select::make('students')
                     ->label('اختر الطلاب')
                     ->options(function () use ($user) {
                         $query = User::role('student');

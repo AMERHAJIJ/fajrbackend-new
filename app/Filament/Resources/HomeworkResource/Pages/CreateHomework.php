@@ -4,6 +4,8 @@ namespace App\Filament\Resources\HomeworkResource\Pages;
 
 use App\Filament\Resources\HomeworkResource;
 use Filament\Resources\Pages\CreateRecord;
+use App\Services\TeacherTaskAutoTracker;
+use Illuminate\Support\Facades\Auth;
 
 class CreateHomework extends CreateRecord
 {
@@ -17,5 +19,18 @@ class CreateHomework extends CreateRecord
         }
 
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        // Auto-update teacher task tracker
+        $record = $this->record;
+        if ($record->teacher_id && $record->subject_id) {
+            $teacherId = $record->teacher_id;
+            $subjectId = $record->subject_id;
+            $date = $record->created_at->toDateString();
+            
+            TeacherTaskAutoTracker::updateHomeworkTask($teacherId, $subjectId, $date);
+        }
     }
 }

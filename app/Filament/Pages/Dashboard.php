@@ -14,6 +14,7 @@ use Filament\Widgets\ChartWidget;
 
 class Dashboard extends BaseDashboard
 {
+    
     protected static ?string $navigationIcon = 'heroicon-o-home';
     
     protected static string $view = 'filament.pages.dashboard';
@@ -28,6 +29,7 @@ class Dashboard extends BaseDashboard
             RecitationScoresWidget::class,
         ];
     }
+    
 }
 
 class DashboardStatsWidget extends BaseWidget

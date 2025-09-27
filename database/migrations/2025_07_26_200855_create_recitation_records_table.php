@@ -14,14 +14,20 @@ return new class extends Migration
         Schema::create('recitation_records', function (Blueprint $table) {
             $table->id();
             $table->date('date');
-            $table->smallInteger('fromAyeh');
-            $table->smallInteger('toAyeh');
-            $table->float('score');
+            $table->decimal('score', 5, 2);
             $table->unsignedBigInteger('student_id');
-            $table->unsignedBigInteger('surah_id');
+            $table->timestamps();
 
             $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('surah_id')->references('id')->on('surahs')->onDelete('cascade');
+        });
+
+        // Create the pivot table
+        Schema::create('recitation_record_surah', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('recitation_record_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('surah_id')->constrained()->cascadeOnDelete();
+            $table->integer('fromAyeh');
+            $table->integer('toAyeh');
             $table->timestamps();
         });
     }
@@ -31,6 +37,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('recitation_record_surah');
         Schema::dropIfExists('recitation_records');
     }
 };

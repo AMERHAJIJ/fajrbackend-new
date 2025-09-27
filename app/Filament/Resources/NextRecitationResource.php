@@ -80,8 +80,15 @@ class NextRecitationResource extends Resource
                             ->relationship('surah', 'name')
                             ->searchable()
                             ->preload()
+                            ->optionsLimit(114)
                             ->required()
                             ->reactive()
+                            ->getOptionLabelFromRecordUsing(fn (Surah $record) => $record->id . ' - ' . $record->name)
+                            ->options(
+                                Surah::orderBy('id')
+                                    ->pluck('name', 'id')
+                                    ->mapWithKeys(fn ($name, $id) => [$id => $id . ' - ' . $name])
+                            )
                             ->afterStateUpdated(function ($state, callable $set) {
                                 $set('fromAyeh', 1);
                                 $set('toAyeh', 1);

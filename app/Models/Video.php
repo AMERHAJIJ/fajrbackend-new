@@ -23,9 +23,9 @@ class Video extends Model
     /**
      * Get the quizzes for the video.
      */
-    public function quizzes(): hasOne
+    public function quizzes(): HasMany
     {
-        return $this->hasOne(Quiz::class, 'video_id', 'id');
+        return $this->hasMany(Quiz::class, 'video_id', 'id');
     }
 
     /**

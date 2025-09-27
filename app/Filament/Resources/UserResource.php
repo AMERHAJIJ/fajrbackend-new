@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources;
 
-use App\Exports\StudentReportExport;
+use App\Services\GoogleSheetsService;
 use App\Filament\Resources\UserResource\Pages;
 use Illuminate\Http\Response;
 use App\Models\User;
@@ -14,7 +14,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Hash;
-use Maatwebsite\Excel\Facades\Excel;
 use Filament\Notifications\Notification;
 
 class UserResource extends Resource
@@ -154,9 +153,24 @@ class UserResource extends Resource
                             return;
                         }
                         
-                        // Create and return the Excel file for download
-                        $export = new StudentReportExport($subjectId, $date);
-                        return $export->download();
+                        // تحديث Google Sheet بتقرير الطلاب
+                        $googleSheetsService = app(GoogleSheetsService::class);
+                        
+                        try {
+                            $googleSheetsService->updateStudentReport($subjectId, $date);
+                            
+                            Notification::make()
+                                ->title('تم التحديث بنجاح')
+                                ->body('تم تحديث بيانات الطلاب في Google Sheet بنجاح')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('حدث خطأ')
+                                ->body('فشل تحديث Google Sheet: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     })
                     ->visible(fn () => auth()->user()->can('export students')),
             ])

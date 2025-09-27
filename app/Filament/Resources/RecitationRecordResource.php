@@ -10,21 +10,18 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Filament\Resources\QuestionResource\Actions\ExportToWhatsAppAction;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\Surah;
+use App\Filament\Resources\RecitationRecordResource\Actions\ExportToWhatsAppAction;
 
 class RecitationRecordResource extends Resource
 {
     protected static ?string $model = RecitationRecord::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-microphone';
-
     protected static ?string $navigationLabel = 'تسجيلات التلاوة';
-
     protected static ?string $modelLabel = 'تسجيل تلاوة';
-
     protected static ?string $pluralModelLabel = 'تسجيلات التلاوة';
-
     protected static ?string $navigationGroup = 'إدارة التعليم';
 
     public static function form(Form $form): Form
@@ -57,34 +54,92 @@ class RecitationRecordResource extends Resource
                                 return User::role('student')->pluck('name', 'id');
                             })
                             ->default(auth()->user()->hasRole('student') ? auth()->id() : null),
-                        Forms\Components\Select::make('surah_id')
-                            ->label('السورة')
-                            ->relationship('surah', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
+                        
                         Forms\Components\DatePicker::make('date')
                             ->label('تاريخ التسجيل')
                             ->required()
                             ->default(now())
                             ->maxDate(now()),
-                    ])->columns(3),
 
-                Forms\Components\Section::make('تفاصيل التلاوة')
+                        Forms\Components\Repeater::make('surahs')
+                            ->label('السور')
+                            ->relationship('surahs')
+                            ->schema([
+                                Forms\Components\Select::make('id')  // Changed from surah_id to id
+                                    ->label('السورة')
+                                    ->relationship('surah', 'name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->optionsLimit(114)
+                                    ->required()
+                                    ->columnSpan(1)
+                                    ->getOptionLabelFromRecordUsing(fn (Surah $record) => $record->id . ' - ' . $record->name)
+                                    ->options(
+                                        Surah::orderBy('id')
+                                            ->pluck('name', 'id')
+                                            ->mapWithKeys(fn ($name, $id) => [$id => $id . ' - ' . $name])
+                                    ),
+                                Forms\Components\TextInput::make('pivot.fromAyeh')
+                                    ->label('من آية')
+                                    ->required()
+                                    ->numeric()
+                                    ->minValue(1)
+                                    ->maxValue(286)
+                                    ->default(1)
+                                    ->columnSpan(1),
+                                Forms\Components\TextInput::make('pivot.toAyeh')
+                                    ->label('إلى آية')
+                                    ->required()
+                                    ->numeric()
+                                    ->minValue(1)
+                                    ->maxValue(286)
+                                    ->default(1)
+                                    ->columnSpan(1)
+                                    ->gt('pivot.fromAyeh'),
+                            ])
+                            ->columns(3)
+                            ->defaultItems(1)
+                            ->minItems(1)
+                            ->addActionLabel('إضافة سورة أخرى')
+                            ->reorderable()
+                            ->columnSpanFull()
+                            ->createItemButtonLabel('إضافة سورة')
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => 
+                                isset($state['id']) 
+                                    ? Surah::find($state['id'])?->name . ' (من ' . ($state['pivot']['fromAyeh'] ?? 1) . ' إلى ' . ($state['pivot']['toAyeh'] ?? 1) . ')'
+                                    : null
+                            )
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                                return [
+                                    'fromAyeh' => $data['pivot']['fromAyeh'],
+                                    'toAyeh' => $data['pivot']['toAyeh'],
+                                ];
+                            })
+                            ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
+                                return [
+                                    'fromAyeh' => $data['pivot']['fromAyeh'],
+                                    'toAyeh' => $data['pivot']['toAyeh'],
+                                ];
+                            })
+                            ->saveRelationshipsUsing(function (RecitationRecord $record, array $state) {
+                                $record->surahs()->sync(
+                                    collect($state)
+                                        ->mapWithKeys(function ($item) {
+                                            return [
+                                                $item['id'] => [
+                                                    'fromAyeh' => $item['pivot']['fromAyeh'],
+                                                    'toAyeh' => $item['pivot']['toAyeh'],
+                                                ]
+                                            ];
+                                        })
+                                );
+                            }),
+                    ])
+                    ->columns(3),
+
+                Forms\Components\Section::make('التقييم')
                     ->schema([
-                        Forms\Components\TextInput::make('fromAyeh')
-                            ->label('من آية')
-                            ->numeric()
-                            ->required()
-                            ->minValue(1)
-                            ->maxValue(286),
-                        Forms\Components\TextInput::make('toAyeh')
-                            ->label('إلى آية')
-                            ->numeric()
-                            ->required()
-                            ->minValue(1)
-                            ->maxValue(286)
-                            ->gte('fromAyeh'),
                         Forms\Components\TextInput::make('score')
                             ->label('الدرجة')
                             ->numeric()
@@ -93,7 +148,8 @@ class RecitationRecordResource extends Resource
                             ->maxValue(100)
                             ->step(0.5)
                             ->suffix('%'),
-                    ])->columns(3),
+                    ])
+                    ->columns(1),
             ]);
     }
 
@@ -105,19 +161,18 @@ class RecitationRecordResource extends Resource
                     ->label('الطالب')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('surah.name')
-                    ->label('السورة')
+                Tables\Columns\TextColumn::make('surahs')
+                    ->label('السور')
+                    ->formatStateUsing(function ($record) {
+                        return $record->surahs->map(function ($surah) {
+                            return $surah->name . ' (من ' . $surah->pivot->fromAyeh . ' إلى ' . $surah->pivot->toAyeh . ')';
+                        })->implode('، ');
+                    })
                     ->searchable()
-                    ->sortable(),
+                    ->wrap(),
                 Tables\Columns\TextColumn::make('date')
                     ->label('التاريخ')
                     ->date('d/m/Y')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('fromAyeh')
-                    ->label('من آية')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('toAyeh')
-                    ->label('إلى آية')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('score')
                     ->label('الدرجة')
@@ -125,97 +180,60 @@ class RecitationRecordResource extends Resource
                     ->sortable()
                     ->color(fn ($state) => $state >= 80 ? 'success' : ($state >= 60 ? 'warning' : 'danger')),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإضافة')
+                    ->label('تاريخ الإنشاء')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('surah_id')
-                    ->label('السورة')
-                    ->relationship('surah', 'name')
+                Tables\Filters\SelectFilter::make('student')
+                    ->label('الطالب')
+                    ->relationship('student', 'name')
                     ->searchable()
                     ->preload(),
-                Tables\Filters\Filter::make('score')
-                    ->form([
-                        Forms\Components\TextInput::make('min_score')
-                            ->label('أقل درجة')
-                            ->numeric()
-                            ->minValue(0)
-                            ->maxValue(100),
-                        Forms\Components\TextInput::make('max_score')
-                            ->label('أعلى درجة')
-                            ->numeric()
-                            ->minValue(0)
-                            ->maxValue(100),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when(
-                                $data['min_score'],
-                                fn (Builder $query, $score): Builder => $query->where('score', '>=', $score),
-                            )
-                            ->when(
-                                $data['max_score'],
-                                fn (Builder $query, $score): Builder => $query->where('score', '<=', $score),
-                            );
-                    }),
+                Tables\Filters\SelectFilter::make('surah')
+                    ->label('السورة')
+                    ->relationship('surahs', 'name')
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\Filter::make('date')
                     ->form([
-                        Forms\Components\DatePicker::make('from_date')
+                        Forms\Components\DatePicker::make('from')
                             ->label('من تاريخ'),
-                        Forms\Components\DatePicker::make('to_date')
+                        Forms\Components\DatePicker::make('until')
                             ->label('إلى تاريخ'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
                             ->when(
-                                $data['from_date'],
+                                $data['from'],
                                 fn (Builder $query, $date): Builder => $query->whereDate('date', '>=', $date),
                             )
                             ->when(
-                                $data['to_date'],
+                                $data['until'],
                                 fn (Builder $query, $date): Builder => $query->whereDate('date', '<=', $date),
                             );
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->headerActions([
                 ExportToWhatsAppAction::make()
-                    ->label('واتساب'), // زر واتساب يظهر فوق الجدول
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ])
-            ->defaultSort('date', 'desc');
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        $query = parent::getEloquentQuery();
-        
-        if (auth()->user()->hasRole('teacher')) {
-            return $query->whereHas('student.subjectsAsStudent.teachers', function($q) {
-                $q->where('teacher_id', auth()->id());
-            });
-        }
-        
-        if (auth()->user()->hasRole('student')) {
-            return $query->where('student_id', auth()->id());
-        }
-        
-        return $query;
+            ]);
     }
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            //
+        ];
     }
 
     public static function getPages(): array
@@ -223,28 +241,28 @@ class RecitationRecordResource extends Resource
         return [
             'index' => Pages\ListRecitationRecords::route('/'),
             'create' => Pages\CreateRecitationRecord::route('/create'),
-            'view' => Pages\ViewRecitationRecord::route('/{record}'),
             'edit' => Pages\EditRecitationRecord::route('/{record}/edit'),
         ];
     }
 
-    public static function canViewAny(): bool
+    public static function getEloquentQuery(): Builder
     {
-        return auth()->user()->hasRole(['admin', 'teacher']);
-    }
+        $query = parent::getEloquentQuery();
 
-    public static function canCreate(): bool
-    {
-        return auth()->user()->hasRole(['admin', 'teacher']);
-    }
+        if (auth()->user()->hasRole('student')) {
+            return $query->where('student_id', auth()->id());
+        }
 
-    public static function canEdit($record): bool
-    {
-        return auth()->user()->hasRole(['admin', 'teacher']);
-    }
+        if (auth()->user()->hasRole('teacher')) {
+            return $query->whereHas('student', function ($query) {
+                $query->whereHas('subjectsAsStudent', function ($query) {
+                    $query->whereHas('teachers', function ($query) {
+                        $query->where('teacher_id', auth()->id());
+                    });
+                });
+            });
+        }
 
-    public static function canDelete($record): bool
-    {
-        return auth()->user()->hasRole('admin');
+        return $query;
     }
 }

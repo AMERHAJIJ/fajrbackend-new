@@ -35,4 +35,20 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
+    'google_sheets' => [
+        'spreadsheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID', '1Nhkvgc4Ggbt7B96B9XUdbKe3ejzzW_7oq3-7eP9GgAg'),
+        'sheet_name' => env('GOOGLE_SHEETS_SHEET_NAME', 'Sheet1'),
+        'service_account_path' => storage_path('app/public/google-service-account.json'),
+        'scopes' => [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive',
+        ],
+    ],
+
 ];
