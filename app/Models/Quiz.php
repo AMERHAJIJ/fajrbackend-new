@@ -25,4 +25,12 @@ class Quiz extends Model
     {
         return $this->hasMany(Question::class, 'quiz_id', 'id');
     }
+
+    /**
+     * Get the student quiz records for the quiz.
+     */
+    public function studentQuizzes(): HasMany
+    {
+        return $this->hasMany(StudentQuiz::class, 'quiz_id', 'id');
+    }
 }

@@ -1,0 +1,4 @@
+# Google Sheets Configuration
+GOOGLE_SERVICE_ACCOUNT_JSON_LOCATION=config/google-service-account.json
+GOOGLE_SHEETS_SPREADSHEET_ID=1Nhkvgc4Ggbt7B96B9XUdbKe3ejzzW_7oq3-7eP9GgAg
+GOOGLE_SHEETS_SHEET_NAME=Sheet1

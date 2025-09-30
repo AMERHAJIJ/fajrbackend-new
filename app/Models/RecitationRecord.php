@@ -4,10 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class RecitationRecord  extends Model
+class RecitationRecord extends Model
 {
     protected $guarded = [];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'date' => 'date',
+        'score' => 'decimal:2',
+    ];
 
     /**
      * Get the student that owns the recitation record.
@@ -18,10 +29,13 @@ class RecitationRecord  extends Model
     }
 
     /**
-     * Get the surah that the recitation record belongs to.
+     * The surahs that belong to the recitation record.
      */
-    public function surah(): BelongsTo
+    public function surahs(): BelongsToMany
     {
-        return $this->belongsTo(Surah::class, 'surah_id', 'id');
+        return $this->belongsToMany(Surah::class, 'recitation_record_surah')
+            ->using(RecitationRecordSurah::class)
+            ->withPivot(['fromAyeh', 'toAyeh'])
+            ->withTimestamps();
     }
 }
