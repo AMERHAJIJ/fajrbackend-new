@@ -140,7 +140,7 @@ class ExportToWhatsAppAction
                 }
                 
                 // Create WhatsApp share link
-                $whatsappUrl = 'https://wa.me/?text=' . urlencode($message);
+                $whatsappUrl = 'https://api.whatsapp.com/send?text=' . urlencode($message);
                 
                 // Return the URL to open in a new tab
                 return redirect($whatsappUrl);
