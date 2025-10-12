@@ -4,8 +4,8 @@ namespace App\Services;
 
 use Google\Client;
 use Google\Service\Sheets;
-use Google\Service\Sheets\ValueRange;
 use Illuminate\Support\Facades\Log;
+use Google\Service\Sheets\ValueRange;
 
 class GoogleSheetsService
 {
@@ -53,7 +53,7 @@ class GoogleSheetsService
             Log::error('Failed to initialize Google Sheets Service: ' . $e->getMessage());
             Log::error('Spreadsheet ID: ' . $this->spreadsheetId ?? 'null');
             Log::error('Sheet Name: ' . $this->sheetName ?? 'null');
-            Log::error('Service Account Path: ' . $serviceAccountPath ?? 'null');
+            // Log::error('Service Account Path: ' . $serviceAccountPath ?? 'null');
             throw $e;
         }
     }
