@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\HomeworkResource\Actions;
 
 use App\Models\User;
+use App\Services\TeacherTaskAutoTracker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Tables\Actions\Action;
@@ -22,6 +23,15 @@ class ExportHomeworkToWhatsApp
                     ->columnSpanFull(),
             ])
             ->action(function (array $data, $record) {
+                // تحديث مهمة إرسال الواجبات
+                if ($record->teacher_id && $record->subject_id) {
+                    $teacherId = $record->teacher_id;
+                    $subjectId = $record->subject_id;
+                    $date = now()->toDateString();
+                    
+                    TeacherTaskAutoTracker::updateHomeworkTask($teacherId, $subjectId, $date);
+                }
+                
                 $message = self::formatWhatsAppMessage($record, $data);
                 $encodedMessage = urlencode($message);
                 $whatsappUrl = "https://wa.me/?text={$encodedMessage}";

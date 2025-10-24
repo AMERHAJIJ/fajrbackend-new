@@ -141,14 +141,6 @@ class TeacherTaskAutoTracker
                 }
             }
 
-            // تحديث مهام الواجبات
-            $homeworkRecords = Homework::whereDate('created_at', $today)->get();
-            foreach ($homeworkRecords as $homework) {
-                if ($homework->teacher_id) {
-                    self::updateHomeworkTask($homework->teacher_id, $homework->subject_id, $today);
-                }
-            }
-
             // تحديث مهام التلاوة التالية
             $nextRecitationRecords = NextRecitation::with('student.subjectsAsStudent.teachers')->whereDate('created_at', $today)->get();
             foreach ($nextRecitationRecords as $nextRecitation) {

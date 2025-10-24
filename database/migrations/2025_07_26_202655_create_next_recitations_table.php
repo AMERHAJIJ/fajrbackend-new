@@ -13,13 +13,22 @@ return new class extends Migration
     {
         Schema::create('next_recitations', function (Blueprint $table) {
             $table->id();
-            $table->smallInteger('fromAyeh');
-            $table->smallInteger('toAyeh');
-            $table->unsignedBigInteger('surah_id');
             $table->unsignedBigInteger('student_id');
+            $table->timestamps();
 
-            $table->foreign('surah_id')->references('id')->on('surahs')->onDelete('cascade');
-             $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade'); 
+            $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade');
+        });
+
+        // Create the pivot table for next_recitation_surah
+        Schema::create('next_recitation_surah', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('next_recitation_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('surah_id')->constrained()->cascadeOnDelete();
+            $table->enum('type', ['ayah', 'page'])->default('ayah');
+            $table->integer('fromAyeh')->nullable();
+            $table->integer('toAyeh')->nullable();
+            $table->integer('fromPage')->nullable();
+            $table->integer('toPage')->nullable();
             $table->timestamps();
         });
     }
@@ -29,6 +38,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('next_recitation_surah');
         Schema::dropIfExists('next_recitations');
     }
 };

@@ -65,7 +65,7 @@ class RecitationRecordResource extends Resource
                             ->label('السور')
                             ->relationship('surahs')
                             ->schema([
-                                Forms\Components\Select::make('id')  // Changed from surah_id to id
+                                Forms\Components\Select::make('id')
                                     ->label('السورة')
                                     ->relationship('surah', 'name')
                                     ->searchable()
@@ -79,25 +79,61 @@ class RecitationRecordResource extends Resource
                                             ->pluck('name', 'id')
                                             ->mapWithKeys(fn ($name, $id) => [$id => $id . ' - ' . $name])
                                     ),
-                                Forms\Components\TextInput::make('pivot.fromAyeh')
-                                    ->label('من آية')
+                                
+                                Forms\Components\Select::make('pivot.type')
+                                    ->label('نوع التسجيل')
+                                    ->options([
+                                        'ayah' => 'من آية إلى آية',
+                                        'page' => 'من صفحة إلى صفحة'
+                                    ])
+                                    ->default('ayah')
+                                    ->live()
                                     ->required()
-                                    ->numeric()
-                                    ->minValue(1)
-                                    ->maxValue(286)
-                                    ->default(1)
                                     ->columnSpan(1),
-                                Forms\Components\TextInput::make('pivot.toAyeh')
-                                    ->label('إلى آية')
-                                    ->required()
-                                    ->numeric()
-                                    ->minValue(1)
-                                    ->maxValue(286)
-                                    ->default(1)
-                                    ->columnSpan(1)
-                                    ->gt('pivot.fromAyeh'),
+                                
+                                // حقل مشروط للآيات
+                                Forms\Components\Group::make([
+                                    Forms\Components\TextInput::make('pivot.fromAyeh')
+                                        ->label('من آية')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(286)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'ayah')
+                                        ->required(fn($get) => $get('pivot.type') === 'ayah'),
+                                    Forms\Components\TextInput::make('pivot.toAyeh')
+                                        ->label('إلى آية')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(286)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'ayah')
+                                        ->required(fn($get) => $get('pivot.type') === 'ayah')
+                                        ->gt('pivot.fromAyeh'),
+                                ])->columns(2),
+                                
+                                // حقل مشروط للصفحات
+                                Forms\Components\Group::make([
+                                    Forms\Components\TextInput::make('pivot.fromPage')
+                                        ->label('من صفحة')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(604)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'page')
+                                        ->required(fn($get) => $get('pivot.type') === 'page'),
+                                    Forms\Components\TextInput::make('pivot.toPage')
+                                        ->label('إلى صفحة')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(604)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'page')
+                                        ->required(fn($get) => $get('pivot.type') === 'page')
+                                        ->gt('pivot.fromPage'),
+                                ])->columns(2),
                             ])
-                            ->columns(3)
+                            ->columns(1)
                             ->defaultItems(1)
                             ->minItems(1)
                             ->addActionLabel('إضافة سورة أخرى')
@@ -111,27 +147,52 @@ class RecitationRecordResource extends Resource
                                     : null
                             )
                             ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
-                                return [
-                                    'fromAyeh' => $data['pivot']['fromAyeh'],
-                                    'toAyeh' => $data['pivot']['toAyeh'],
+                                $pivotData = [
+                                    'type' => $data['pivot']['type'],
                                 ];
+                                
+                                if ($data['pivot']['type'] === 'ayah') {
+                                    $pivotData['fromAyeh'] = $data['pivot']['fromAyeh'];
+                                    $pivotData['toAyeh'] = $data['pivot']['toAyeh'];
+                                } else {
+                                    $pivotData['fromPage'] = $data['pivot']['fromPage'];
+                                    $pivotData['toPage'] = $data['pivot']['toPage'];
+                                }
+                                
+                                return $pivotData;
                             })
                             ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
-                                return [
-                                    'fromAyeh' => $data['pivot']['fromAyeh'],
-                                    'toAyeh' => $data['pivot']['toAyeh'],
+                                $pivotData = [
+                                    'type' => $data['pivot']['type'],
                                 ];
+                                
+                                if ($data['pivot']['type'] === 'ayah') {
+                                    $pivotData['fromAyeh'] = $data['pivot']['fromAyeh'];
+                                    $pivotData['toAyeh'] = $data['pivot']['toAyeh'];
+                                } else {
+                                    $pivotData['fromPage'] = $data['pivot']['fromPage'];
+                                    $pivotData['toPage'] = $data['pivot']['toPage'];
+                                }
+                                
+                                return $pivotData;
                             })
                             ->saveRelationshipsUsing(function (RecitationRecord $record, array $state) {
                                 $record->surahs()->sync(
                                     collect($state)
                                         ->mapWithKeys(function ($item) {
-                                            return [
-                                                $item['id'] => [
-                                                    'fromAyeh' => $item['pivot']['fromAyeh'],
-                                                    'toAyeh' => $item['pivot']['toAyeh'],
-                                                ]
+                                            $pivotData = [
+                                                'type' => $item['pivot']['type'],
                                             ];
+                                            
+                                            if ($item['pivot']['type'] === 'ayah') {
+                                                $pivotData['fromAyeh'] = $item['pivot']['fromAyeh'];
+                                                $pivotData['toAyeh'] = $item['pivot']['toAyeh'];
+                                            } else {
+                                                $pivotData['fromPage'] = $item['pivot']['fromPage'];
+                                                $pivotData['toPage'] = $item['pivot']['toPage'];
+                                            }
+                                            
+                                            return [$item['id'] => $pivotData];
                                         })
                                 );
                             }),
@@ -165,7 +226,12 @@ class RecitationRecordResource extends Resource
                     ->label('السور')
                     ->formatStateUsing(function ($record) {
                         return $record->surahs->map(function ($surah) {
-                            return $surah->name . ' (من ' . $surah->pivot->fromAyeh . ' إلى ' . $surah->pivot->toAyeh . ')';
+                            $type = $surah->pivot->type === 'ayah' ? 'آيات' : 'صفحات';
+                            if ($surah->pivot->type === 'ayah') {
+                                return $surah->name . ' (من آية ' . $surah->pivot->fromAyeh . ' إلى ' . $surah->pivot->toAyeh . ')';
+                            } else {
+                                return $surah->name . ' (من صفحة ' . $surah->pivot->fromPage . ' إلى ' . $surah->pivot->toPage . ')';
+                            }
                         })->implode('، ');
                     })
                     ->searchable()
@@ -196,6 +262,20 @@ class RecitationRecordResource extends Resource
                     ->relationship('surahs', 'name')
                     ->searchable()
                     ->preload(),
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('نوع التسجيل')
+                    ->options([
+                        'ayah' => 'آيات',
+                        'page' => 'صفحات'
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (!$data['value']) {
+                            return $query;
+                        }
+                        return $query->whereHas('surahs', function ($q) use ($data) {
+                            $q->where('recitation_record_surah.type', $data['value']);
+                        });
+                    }),
                 Tables\Filters\Filter::make('date')
                     ->form([
                         Forms\Components\DatePicker::make('from')

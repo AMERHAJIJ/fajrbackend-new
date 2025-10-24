@@ -35,7 +35,7 @@ class RecitationRecord extends Model
     {
         return $this->belongsToMany(Surah::class, 'recitation_record_surah')
             ->using(RecitationRecordSurah::class)
-            ->withPivot(['fromAyeh', 'toAyeh'])
+            ->withPivot(['type', 'fromAyeh', 'toAyeh', 'fromPage', 'toPage'])
             ->withTimestamps();
     }
 }

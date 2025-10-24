@@ -4,12 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class RecitationRecordSurah extends Pivot
+class NextRecitationSurah extends Pivot
 {
-    protected $table = 'recitation_record_surah';
+    protected $table = 'next_recitation_surah';
 
     protected $fillable = [
-        'recitation_record_id',
+        'next_recitation_id',
         'surah_id',
         'type',
         'fromAyeh',

@@ -26,8 +26,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('recitation_record_id')->constrained()->cascadeOnDelete();
             $table->foreignId('surah_id')->constrained()->cascadeOnDelete();
-            $table->integer('fromAyeh');
-            $table->integer('toAyeh');
+            $table->enum('type', ['ayah', 'page'])->default('ayah');
+            $table->integer('fromAyeh')->nullable();
+            $table->integer('toAyeh')->nullable();
+            $table->integer('fromPage')->nullable();
+            $table->integer('toPage')->nullable();
             $table->timestamps();
         });
     }

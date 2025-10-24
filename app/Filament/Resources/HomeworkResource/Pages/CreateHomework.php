@@ -23,14 +23,7 @@ class CreateHomework extends CreateRecord
 
     protected function afterCreate(): void
     {
-        // Auto-update teacher task tracker
-        $record = $this->record;
-        if ($record->teacher_id && $record->subject_id) {
-            $teacherId = $record->teacher_id;
-            $subjectId = $record->subject_id;
-            $date = $record->created_at->toDateString();
-            
-            TeacherTaskAutoTracker::updateHomeworkTask($teacherId, $subjectId, $date);
-        }
+        // لا يتم تحديث مهمة الواجبات هنا
+        // سيتم تحديثها فقط عند إرسال الواجب عبر الواتساب
     }
 }

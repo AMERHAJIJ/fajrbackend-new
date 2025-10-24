@@ -34,6 +34,18 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
     protected static ?string $navigationGroup = 'التقارير والإحصائيات';
     protected static ?int $navigationSort = 1;
 
+    // إخفاء الصفحة من غير المديرين
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('admin') ?? false;
+    }
+
+    // التحقق من الصلاحيات للوصول للصفحة
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('admin') ?? false;
+    }
+
     protected static string $view = 'filament.pages.student-statistics';
 
     public ?int $selectedSubject = null;
@@ -41,6 +53,11 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
 
     public function mount(): void
     {
+        // التحقق من الصلاحيات
+        if (!auth()->user()?->hasRole('admin')) {
+            abort(403, 'ليس لديك صلاحية للوصول إلى هذه الصفحة');
+        }
+
         $this->selectedDate = now()->format('Y-m-d');
         $this->selectedSubject = null;
     }

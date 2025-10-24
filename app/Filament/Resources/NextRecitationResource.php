@@ -75,37 +75,133 @@ class NextRecitationResource extends Resource
                                     ->email()
                                     ->required(),
                             ]),
-                        Forms\Components\Select::make('surah_id')
-                            ->label('السورة')
-                            ->relationship('surah', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->optionsLimit(114)
-                            ->required()
-                            ->reactive()
-                            ->getOptionLabelFromRecordUsing(fn (Surah $record) => $record->id . ' - ' . $record->name)
-                            ->options(
-                                Surah::orderBy('id')
-                                    ->pluck('name', 'id')
-                                    ->mapWithKeys(fn ($name, $id) => [$id => $id . ' - ' . $name])
-                            )
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('fromAyeh', 1);
-                                $set('toAyeh', 1);
+                        Forms\Components\Repeater::make('surahs')
+                            ->label('السور')
+                            ->relationship('surahs')
+                            ->schema([
+                                Forms\Components\Select::make('id')
+                                    ->label('السورة')
+                                    ->relationship('surah', 'name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->optionsLimit(114)
+                                    ->required()
+                                    ->getOptionLabelFromRecordUsing(fn (Surah $record) => $record->id . ' - ' . $record->name)
+                                    ->options(
+                                        Surah::orderBy('id')
+                                            ->pluck('name', 'id')
+                                            ->mapWithKeys(fn ($name, $id) => [$id => $id . ' - ' . $name])
+                                    ),
+                                
+                                Forms\Components\Select::make('pivot.type')
+                                    ->label('نوع التسجيل')
+                                    ->options([
+                                        'ayah' => 'من آية إلى آية',
+                                        'page' => 'من صفحة إلى صفحة'
+                                    ])
+                                    ->default('ayah')
+                                    ->live()
+                                    ->required()
+                                    ->columnSpan(1),
+                                
+                                // حقل مشروط للآيات
+                                Forms\Components\Group::make([
+                                    Forms\Components\TextInput::make('pivot.fromAyeh')
+                                        ->label('من آية')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(286)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'ayah')
+                                        ->required(fn($get) => $get('pivot.type') === 'ayah'),
+                                    Forms\Components\TextInput::make('pivot.toAyeh')
+                                        ->label('إلى آية')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(286)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'ayah')
+                                        ->required(fn($get) => $get('pivot.type') === 'ayah')
+                                        ->gt('pivot.fromAyeh'),
+                                ])->columns(2),
+                                
+                                // حقل مشروط للصفحات
+                                Forms\Components\Group::make([
+                                    Forms\Components\TextInput::make('pivot.fromPage')
+                                        ->label('من صفحة')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(604)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'page')
+                                        ->required(fn($get) => $get('pivot.type') === 'page'),
+                                    Forms\Components\TextInput::make('pivot.toPage')
+                                        ->label('إلى صفحة')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->maxValue(604)
+                                        ->default(1)
+                                        ->visible(fn($get) => $get('pivot.type') === 'page')
+                                        ->required(fn($get) => $get('pivot.type') === 'page')
+                                        ->gt('pivot.fromPage'),
+                                ])->columns(2),
+                            ])
+                            ->columns(1)
+                            ->defaultItems(1)
+                            ->minItems(1)
+                            ->addActionLabel('إضافة سورة أخرى')
+                            ->reorderable()
+                            ->columnSpanFull()
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                                $pivotData = [
+                                    'type' => $data['pivot']['type'],
+                                ];
+                                
+                                if ($data['pivot']['type'] === 'ayah') {
+                                    $pivotData['fromAyeh'] = $data['pivot']['fromAyeh'];
+                                    $pivotData['toAyeh'] = $data['pivot']['toAyeh'];
+                                } else {
+                                    $pivotData['fromPage'] = $data['pivot']['fromPage'];
+                                    $pivotData['toPage'] = $data['pivot']['toPage'];
+                                }
+                                
+                                return $pivotData;
+                            })
+                            ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
+                                $pivotData = [
+                                    'type' => $data['pivot']['type'],
+                                ];
+                                
+                                if ($data['pivot']['type'] === 'ayah') {
+                                    $pivotData['fromAyeh'] = $data['pivot']['fromAyeh'];
+                                    $pivotData['toAyeh'] = $data['pivot']['toAyeh'];
+                                } else {
+                                    $pivotData['fromPage'] = $data['pivot']['fromPage'];
+                                    $pivotData['toPage'] = $data['pivot']['toPage'];
+                                }
+                                
+                                return $pivotData;
+                            })
+                            ->saveRelationshipsUsing(function (NextRecitation $record, array $state) {
+                                $record->surahs()->sync(
+                                    collect($state)
+                                        ->mapWithKeys(function ($item) {
+                                            $pivotData = [
+                                                'type' => $item['pivot']['type'],
+                                            ];
+                                            
+                                            if ($item['pivot']['type'] === 'ayah') {
+                                                $pivotData['fromAyeh'] = $item['pivot']['fromAyeh'];
+                                                $pivotData['toAyeh'] = $item['pivot']['toAyeh'];
+                                            } else {
+                                                $pivotData['fromPage'] = $item['pivot']['fromPage'];
+                                                $pivotData['toPage'] = $item['pivot']['toPage'];
+                                            }
+                                            
+                                            return [$item['id'] => $pivotData];
+                                        })
+                                );
                             }),
-                        Forms\Components\TextInput::make('fromAyeh')
-                            ->label('من الآية رقم')
-                            ->required()
-                            ->numeric()
-                            ->minValue(1)
-                            ->default(1),
-                        Forms\Components\TextInput::make('toAyeh')
-                            ->label('إلى الآية رقم')
-                            ->required()
-                            ->numeric()
-                            ->minValue(1)
-                            ->default(1)
-                            ->gte('fromAyeh'),
                     ])->columns(2),
             ]);
     }
@@ -118,28 +214,19 @@ class NextRecitationResource extends Resource
                     ->label('الطالب')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('surah.name')
-                    ->label('السورة')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('fromAyeh')
-                    ->label('من الآية')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('toAyeh')
-                    ->label('إلى الآية')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('range')
-                    ->label('المدى')
-                    ->getStateUsing(function ($record) {
-                        if ($record->fromAyeh == $record->toAyeh) {
-                            return "الآية {$record->fromAyeh}";
-                        }
-                        return "من الآية {$record->fromAyeh} إلى {$record->toAyeh}";
+                Tables\Columns\TextColumn::make('surahs')
+                    ->label('السور')
+                    ->formatStateUsing(function ($record) {
+                        return $record->surahs->map(function ($surah) {
+                            if ($surah->pivot->type === 'ayah') {
+                                return $surah->name . ' (من آية ' . $surah->pivot->fromAyeh . ' إلى ' . $surah->pivot->toAyeh . ')';
+                            } else {
+                                return $surah->name . ' (من صفحة ' . $surah->pivot->fromPage . ' إلى ' . $surah->pivot->toPage . ')';
+                            }
+                        })->implode('، ');
                     })
-                    ->badge()
-                    ->color('primary'),
+                    ->searchable()
+                    ->wrap(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('تاريخ الإنشاء')
                     ->dateTime('Y-m-d H:i')
@@ -147,11 +234,25 @@ class NextRecitationResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('surah_id')
+                Tables\Filters\SelectFilter::make('surah')
                     ->label('السورة')
-                    ->relationship('surah', 'name')
+                    ->relationship('surahs', 'name')
                     ->searchable()
                     ->preload(),
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('نوع التسجيل')
+                    ->options([
+                        'ayah' => 'آيات',
+                        'page' => 'صفحات'
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (!$data['value']) {
+                            return $query;
+                        }
+                        return $query->whereHas('surahs', function ($q) use ($data) {
+                            $q->where('next_recitation_surah.type', $data['value']);
+                        });
+                    }),
                 Tables\Filters\SelectFilter::make('student_id')
                     ->label('الطالب')
                     ->relationship(
