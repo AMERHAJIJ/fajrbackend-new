@@ -150,7 +150,6 @@ class ExportToWhatsAppAction
                 // تنسيق الرسالة لواتساب
                 $message = str_replace("\n", "%0A", $message);
                 $whatsappUrl = "https://wa.me/?text={$message}";
-
                 return redirect($whatsappUrl);
             });
     }
