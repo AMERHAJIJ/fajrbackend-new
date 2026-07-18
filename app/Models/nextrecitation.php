@@ -10,6 +10,17 @@ class NextRecitation extends Model
 {
     protected $guarded = [];
 
+    protected static function booted()
+    {
+        static::saved(function ($record) {
+            \App\Services\TaskTrackingService::track(
+                $record->teacher_id ?? auth()->id(),
+                $record->subject_id,
+                'next_recitation_set'
+            );
+        });
+    }
+
     /**
      * The attributes that should be cast.
      */

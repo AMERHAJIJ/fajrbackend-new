@@ -29,9 +29,9 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
     use InteractsWithForms, InteractsWithActions, InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
-    protected static ?string $navigationLabel = 'إحصائيات الطلاب';
-    protected static ?string $title = 'إحصائيات الطلاب';
-    protected static ?string $navigationGroup = 'التقارير والإحصائيات';
+    public static function getNavigationLabel(): string { return __('admin.pages.student_statistics.title'); }
+    public function getTitle(): string | \Illuminate\Contracts\Support\Htmlable { return __('admin.pages.student_statistics.title'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.reports_statistics'); }
     protected static ?int $navigationSort = 1;
 
     // إخفاء الصفحة من غير المديرين
@@ -48,40 +48,59 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
 
     protected static string $view = 'filament.pages.student-statistics';
 
+    public string $reportType = 'daily';
     public ?int $selectedSubject = null;
     public ?string $selectedDate = null;
 
     public function mount(): void
     {
-        // التحقق من الصلاحيات
         if (!auth()->user()?->hasRole('admin')) {
-            abort(403, 'ليس لديك صلاحية للوصول إلى هذه الصفحة');
+            abort(403, __('admin.messages.no_permission'));
         }
 
         $this->selectedDate = now()->format('Y-m-d');
         $this->selectedSubject = null;
+        $this->reportType = 'daily';
     }
 
     public function getTableQuery(): Builder
     {
-        // إذا لم يتم اختيار مادة أو تاريخ، إرجاع query فارغ
-        if (!$this->selectedSubject || !$this->selectedDate) {
+        if (!$this->selectedSubject) {
             return User::role('student')->whereRaw('1 = 0');
         }
 
         $query = User::role('student')
             ->whereHas('subjectsAsStudent', function($q) {
                 $q->where('subject_id', $this->selectedSubject);
-            })
-            ->with([
-                'attendances' => function($query) {
-                    $query->whereDate('date', $this->selectedDate);
+            });
+
+        if ($this->reportType === 'daily') {
+            if (!$this->selectedDate) {
+                return User::role('student')->whereRaw('1 = 0');
+            }
+            $query->with([
+                'attendances' => function($q) {
+                    $q->where('subject_id', $this->selectedSubject)
+                      ->whereDate('date', $this->selectedDate);
                 },
-                'recitationRecords' => function($query) {
-                    $query->whereDate('date', $this->selectedDate)
-                        ->with('surahs');
+                'recitationRecords' => function($q) {
+                    $q->where('subject_id', $this->selectedSubject)
+                      ->whereDate('date', $this->selectedDate)
+                      ->with('surahs');
                 }
             ]);
+        } else {
+            // Cumulative
+            $query->with([
+                'attendances' => function($q) {
+                    $q->where('subject_id', $this->selectedSubject);
+                },
+                'recitationRecords' => function($q) {
+                    $q->where('subject_id', $this->selectedSubject)
+                      ->with(['surahs', 'teacher']);
+                }
+            ]);
+        }
 
         return $query;
     }
@@ -90,10 +109,25 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
     {
         return $form
             ->schema([
-                Section::make('فلترة البيانات')
+                Section::make('تصفية البيانات للتقارير')
                     ->schema([
+                        Select::make('reportType')
+                            ->label('نوع التقرير')
+                            ->options([
+                                'daily' => 'تقرير يومي محدد',
+                                'cumulative' => 'تقرير تراكمي عام',
+                            ])
+                            ->default('daily')
+                            ->live()
+                            ->required()
+                            ->afterStateUpdated(function ($state) {
+                                $this->reportType = $state;
+                                $this->resetTable();
+                                $this->dispatch('$refresh');
+                            }),
+
                         Select::make('selectedSubject')
-                            ->label('المادة')
+                            ->label('الحلقة')
                             ->options(Subject::where('active', true)->pluck('title', 'id'))
                             ->searchable()
                             ->preload()
@@ -103,22 +137,20 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
                                 $this->selectedSubject = $state;
                                 $this->resetTable();
                                 $this->dispatch('$refresh');
-                            })
-                            ->helperText('يجب اختيار مادة لعرض الطلاب'),
+                            }),
                         
                         DatePicker::make('selectedDate')
                             ->label('التاريخ')
                             ->default(now())
                             ->live()
+                            ->visible(fn (callable $get) => $get('reportType') === 'daily')
                             ->afterStateUpdated(function ($state) {
                                 $this->selectedDate = $state;
                                 $this->resetTable();
                                 $this->dispatch('$refresh');
                             })
-                            ->helperText('يمكنك اختيار أي تاريخ للبحث عن البيانات')
-                            ->required(),
                     ])
-                    ->columns(2)
+                    ->columns(3)
                     ->collapsible(),
             ]);
     }
@@ -133,140 +165,222 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
                     ->searchable()
                     ->sortable(),
                 
-                       TextColumn::make('attendance_status')
-                           ->label('الحضور')
-                           ->getStateUsing(function ($record) {
-                               if (!$this->selectedDate) return 'لم يتم التسجيل';
-                               
-                               // استخدام البيانات المحملة مسبقاً بدلاً من query جديد
-                               $attendance = $record->attendances->first();
-                               
-                               if (!$attendance) {
-                                   return 'لم يتم التسجيل';
-                               }
-                               
-                               return $attendance->status ? 'حاضر' : 'غائب';
-                           })
+                // Cumulative columns
+                TextColumn::make('age')
+                    ->label('العمر')
+                    ->visible(fn () => $this->reportType === 'cumulative')
+                    ->sortable(),
+
+                TextColumn::make('created_at')
+                    ->label('تاريخ التسجيل')
+                    ->dateTime('d/m/Y')
+                    ->visible(fn () => $this->reportType === 'cumulative')
+                    ->sortable(),
+
+                // Daily columns
+                TextColumn::make('attendance_status')
+                    ->label('حالة الحضور')
+                    ->visible(fn () => $this->reportType === 'daily')
+                    ->getStateUsing(function ($record) {
+                        if (!$this->selectedDate) return 'لم يسجل';
+                        $attendance = $record->attendances->first();
+                        if (!$attendance) return 'لم يسجل';
+                        return $attendance->status ? 'حاضر' : 'غائب';
+                    })
                     ->badge()
-                    ->color(function (string $state): string {
-                        if ($state === 'حاضر') return 'success';
-                        if ($state === 'غائب') return 'danger';
-                        return 'gray';
+                    ->color(fn ($state) => match ($state) {
+                        'حاضر' => 'success',
+                        'غائب' => 'danger',
+                        default => 'gray',
                     }),
                 
-                       TextColumn::make('recitation_info')
-                           ->label('ما سمع')
-                           ->getStateUsing(function ($record) {
-                               if (!$this->selectedDate) return 'لا يوجد';
-                               
-                               // استخدام البيانات المحملة مسبقاً بدلاً من query جديد
-                               $recitation = $record->recitationRecords->first();
-                               
-                               if (!$recitation) {
-                                   return 'لا يوجد';
-                               }
-                               
-                               $surahs = $recitation->surahs->map(function($surah) {
-                                   return "{$surah->name} (من آية {$surah->pivot->fromAyeh} إلى {$surah->pivot->toAyeh})";
-                               })->implode('، ');
-                               
-                               return $surahs ?: 'لا يوجد';
-                           })
+                TextColumn::make('recitation_info')
+                    ->label('التسميع اليومي')
+                    ->visible(fn () => $this->reportType === 'daily')
+                    ->getStateUsing(function ($record) {
+                        if (!$this->selectedDate) return 'لا يوجد';
+                        $recitation = $record->recitationRecords->first();
+                        if (!$recitation) return 'لا يوجد';
+                        $surahs = $recitation->surahs->map(function($surah) {
+                            if ($surah->pivot->type === 'ayah') {
+                                return "{$surah->name} (من آية {$surah->pivot->fromAyeh} إلى {$surah->pivot->toAyeh})";
+                            } else {
+                                return "{$surah->name} (من صفحة {$surah->pivot->fromPage} إلى {$surah->pivot->toPage})";
+                            }
+                        })->implode('، ');
+                        return $surahs ?: 'لا يوجد';
+                    })
                     ->wrap(),
                 
-                       TextColumn::make('recitation_score')
-                           ->label('النتيجة')
-                           ->getStateUsing(function ($record) {
-                               if (!$this->selectedDate) return 'لا يوجد';
-                               
-                               // استخدام البيانات المحملة مسبقاً بدلاً من query جديد
-                               $recitation = $record->recitationRecords->first();
-                               
-                               if (!$recitation) {
-                                   return 'لا يوجد';
-                               }
-                               
-                               return $recitation->score . '/10';
-                           })
+                TextColumn::make('recitation_score')
+                    ->label('تقييم التسميع')
+                    ->visible(fn () => $this->reportType === 'daily')
+                    ->getStateUsing(function ($record) {
+                        if (!$this->selectedDate) return 'لا يوجد';
+                        $recitation = $record->recitationRecords->first();
+                        if (!$recitation) return 'لا يوجد';
+                        return $recitation->score . '%';
+                    })
                     ->badge()
                     ->color(function (string $state): string {
                         if ($state === 'لا يوجد') return 'gray';
-                        
-                        $score = (int) explode('/', $state)[0];
+                        $score = (int) $state;
                         if ($score >= 90) return 'success';
                         if ($score >= 80) return 'info';
-                        if ($score >= 70) return 'warning';
-                        if ($score >= 60) return 'danger';
-                        return 'gray';
+                        if ($score >= 60) return 'warning';
+                        return 'danger';
+                    }),
+                
+                // Cumulative summary columns
+                TextColumn::make('attendance_summary')
+                    ->label('الحضور والغياب الكلي')
+                    ->visible(fn () => $this->reportType === 'cumulative')
+                    ->getStateUsing(function ($record) {
+                        $total = $record->attendances->count();
+                        if ($total === 0) return 'لم يسجل حضور';
+                        $present = $record->attendances->where('status', true)->count();
+                        $percentage = round(($present / $total) * 100);
+                        return "{$present} / {$total} يوماً ({$percentage}%)";
+                    })
+                    ->badge()
+                    ->color('info'),
+
+                TextColumn::make('total_pages_memorized')
+                    ->label('إجمالي الصفحات المحفوظة')
+                    ->visible(fn () => $this->reportType === 'cumulative')
+                    ->getStateUsing(function ($record) {
+                        $totalPages = 0;
+                        foreach ($record->recitationRecords as $recordItem) {
+                            foreach ($recordItem->surahs as $surah) {
+                                if ($surah->pivot->type === 'page') {
+                                    $totalPages += max(0, $surah->pivot->toPage - $surah->pivot->fromPage + 1);
+                                } else {
+                                    if ($surah->pivot->fromPage && $surah->pivot->toPage) {
+                                        $totalPages += max(0, $surah->pivot->toPage - $surah->pivot->fromPage + 1);
+                                    }
+                                }
+                            }
+                        }
+                        return $totalPages . ' صفحة';
+                    }),
+
+                TextColumn::make('average_score')
+                    ->label('معدل التسميع الكلي')
+                    ->visible(fn () => $this->reportType === 'cumulative')
+                    ->getStateUsing(function ($record) {
+                        $totalRecords = $record->recitationRecords->count();
+                        if ($totalRecords === 0) return 'لا يوجد';
+                        $avg = $record->recitationRecords->avg('score');
+                        return number_format($avg, 1) . '%';
+                    })
+                    ->badge()
+                    ->color(function (string $state): string {
+                        if ($state === 'لا يوجد') return 'gray';
+                        $score = (float) $state;
+                        if ($score >= 90) return 'success';
+                        if ($score >= 80) return 'info';
+                        if ($score >= 60) return 'warning';
+                        return 'danger';
+                    }),
+
+                TextColumn::make('completed_surahs')
+                    ->label('المحصلات (السور المسجلة)')
+                    ->visible(fn () => $this->reportType === 'cumulative')
+                    ->getStateUsing(function ($record) {
+                        $surahNames = [];
+                        foreach ($record->recitationRecords as $recordItem) {
+                            foreach ($recordItem->surahs as $surah) {
+                                $surahNames[] = $surah->name;
+                            }
+                        }
+                        $uniqueSurahs = array_unique($surahNames);
+                        return empty($uniqueSurahs) ? 'لا يوجد' : implode('، ', $uniqueSurahs);
+                    })
+                    ->wrap(),
+
+                TextColumn::make('primary_teacher')
+                    ->label('الأستاذ المتابع')
+                    ->visible(fn () => $this->reportType === 'cumulative')
+                    ->getStateUsing(function ($record) {
+                        $teachers = [];
+                        foreach ($record->recitationRecords as $recordItem) {
+                            if ($recordItem->teacher) {
+                                $teachers[] = $recordItem->teacher->name;
+                            }
+                        }
+                        if (empty($teachers)) {
+                            $subject = Subject::find($this->selectedSubject);
+                            return $subject?->teachers?->first()?->name ?? 'غير محدد';
+                        }
+                        $counts = array_count_values($teachers);
+                        arsort($counts);
+                        return array_key_first($counts);
                     }),
                 
                 TextColumn::make('date')
                     ->label('التاريخ')
+                    ->visible(fn () => $this->reportType === 'daily')
                     ->getStateUsing(fn () => $this->selectedDate ?? 'غير محدد')
-                    ->date('Y-m-d'),
+                    ->date('d/m/Y'),
             ])
             ->filters([
                 SelectFilter::make('attendance_status')
-                    ->label('حالة الحضور')
+                    ->label('حالة الحضور اليومي')
+                    ->visible(fn () => $this->reportType === 'daily')
                     ->options([
                         'present' => 'حاضر',
                         'absent' => 'غائب',
-                        'not_registered' => 'لم يتم التسجيل',
+                        'not_registered' => 'لم يسجل حضور',
                     ])
-                           ->query(function (Builder $query, array $data): Builder {
-                               if (!$data['value']) {
-                                   return $query;
-                               }
-                               
-                               if (!$this->selectedDate) return $query;
-                               
-                               // تحسين الفلتر ليكون أكثر كفاءة
-                               return $query->whereHas('attendances', function ($q) use ($data) {
-                                   $q->whereDate('date', $this->selectedDate);
-                                   
-                                   if ($data['value'] === 'present') {
-                                       $q->where('status', true);
-                                   } elseif ($data['value'] === 'absent') {
-                                       $q->where('status', false);
-                                   } elseif ($data['value'] === 'not_registered') {
-                                       // للطلاب الذين لم يتم تسجيل حضورهم
-                                       $q->whereRaw('1 = 0'); // لا يوجد سجلات حضور
-                                   }
-                               });
-                           }),
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (!$data['value']) {
+                            return $query;
+                        }
+                        
+                        if (!$this->selectedDate) return $query;
+                        
+                        return $query->whereHas('attendances', function ($q) use ($data) {
+                            $q->whereDate('date', $this->selectedDate);
+                            
+                            if ($data['value'] === 'present') {
+                                $q->where('status', true);
+                            } elseif ($data['value'] === 'absent') {
+                                $q->where('status', false);
+                            } elseif ($data['value'] === 'not_registered') {
+                                $q->whereRaw('1 = 0');
+                            }
+                        });
+                    }),
             ])
             ->defaultSort('name')
             ->paginated([10, 25, 50, 100])
             ->poll('30s');
     }
 
-
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('export_to_google_sheets')
-                ->label('تصدير إلى Google Sheets')
-                ->icon('heroicon-o-table-cells')
+            Action::make('update_google_sheets')
+                ->label('تحديث جداول بيانات Google')
+                ->icon('heroicon-o-arrow-path')
                 ->color('success')
                 ->requiresConfirmation()
                 ->modalHeading('تصدير البيانات إلى Google Sheets')
-                ->modalDescription('سيتم تصدير بيانات الطلاب المحددة إلى Google Sheets. هل تريد المتابعة؟')
+                ->modalDescription('هل أنت متأكد من رغبتك في تصدير وتحديث البيانات في Google Sheets؟')
                 ->action(function () {
-                    // التحقق من وجود المادة المحددة
                     if (!$this->selectedSubject) {
                         Notification::make()
                             ->title('خطأ')
-                            ->body('يجب اختيار مادة أولاً')
+                            ->body('يجب اختيار حلقة أولاً.')
                             ->danger()
                             ->send();
                         return;
                     }
 
-                    // التحقق من وجود التاريخ
-                    if (!$this->selectedDate) {
+                    if ($this->reportType === 'daily' && !$this->selectedDate) {
                         Notification::make()
-                            ->title('خطأ')
-                            ->body('يجب اختيار تاريخ أولاً')
+                            ->title('خطأ في التصدير')
+                            ->body('يجب تحديد التاريخ أولاً للتقرير اليومي.')
                             ->danger()
                             ->send();
                         return;
@@ -275,45 +389,42 @@ class StudentStatistics extends Page implements HasForms, HasActions, HasTable
                     try {
                         $googleSheetsService = app(GoogleSheetsService::class);
                         
-                        // Test connection first
                         if (!$googleSheetsService->testConnection()) {
                             Notification::make()
-                                ->title('خطأ في الاتصال')
-                                ->body('لا يمكن الاتصال بـ Google Sheets. تحقق من الإعدادات.')
+                                ->title('فشل الاتصال')
+                                ->body('لا يمكن الاتصال بـ Google Sheets. يرجى التحقق من الملف الأمني وإعدادات الاتصال.')
                                 ->danger()
                                 ->send();
                             return;
                         }
                         
-                        $result = $googleSheetsService->updateStudentReport($this->selectedSubject, $this->selectedDate);
+                        $exportDate = $this->reportType === 'daily' ? $this->selectedDate : now()->format('Y-m-d');
+                        $result = $googleSheetsService->updateStudentReport($this->selectedSubject, $exportDate, $this->reportType);
                         
                         if ($result) {
                             Notification::make()
                                 ->title('تم التصدير بنجاح')
-                                ->body('تم تصدير بيانات الطلاب إلى Google Sheets بنجاح')
+                                ->body('تم تحديث البيانات في Google Sheets بنجاح وفقاً لنوع التقرير المحدد.')
                                 ->success()
                                 ->send();
                         } else {
                             Notification::make()
                                 ->title('فشل التصدير')
-                                ->body('حدث خطأ أثناء تصدير البيانات')
+                                ->body('فشل تحديث البيانات في Google Sheets.')
                                 ->danger()
                                 ->send();
                         }
                     } catch (\Exception $e) {
                         $errorMessage = $e->getMessage();
                         
-                        // Provide more specific error messages
                         if (strpos($errorMessage, '404') !== false || strpos($errorMessage, 'not found') !== false) {
-                            $errorMessage = 'الجدول غير موجود. تحقق من Spreadsheet ID.';
+                            $errorMessage = 'ملف جداول بيانات جوجل غير موجود أو لا يمكن الوصول إليه.';
                         } elseif (strpos($errorMessage, '403') !== false || strpos($errorMessage, 'permission') !== false) {
-                            $errorMessage = 'لا توجد صلاحيات للوصول للجدول. تحقق من إعدادات Service Account.';
-                        } elseif (strpos($errorMessage, 'Service Account') !== false) {
-                            $errorMessage = 'مشكلة في ملف Service Account. تحقق من الملف وصلاحياته.';
+                            $errorMessage = 'صلاحيات حساب الخدمة غير كافية للوصول للملف.';
                         }
                         
                         Notification::make()
-                            ->title('حدث خطأ')
+                            ->title('حدث خطأ أثناء التصدير')
                             ->body('فشل تصدير البيانات: ' . $errorMessage)
                             ->danger()
                             ->send();

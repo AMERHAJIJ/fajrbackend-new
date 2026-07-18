@@ -17,44 +17,41 @@ class HomeworkResource extends Resource
 {
     protected static ?string $model = Homework::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationLabel = 'الواجبات';
-
-    protected static ?string $modelLabel = 'واجب';
-
-    protected static ?string $pluralModelLabel = 'الواجبات';
-
-    protected static ?string $navigationGroup = 'إدارة التعليم';
+    public static function getNavigationLabel(): string { return __('admin.resources.homework.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.homework.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.homework.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.education_management'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات الواجب')
+                Forms\Components\Section::make(__('admin.resources.homework.label'))
                     ->schema([
                         Forms\Components\TextInput::make('title')
-                            ->label('عنوان الواجب')
+                            ->label(__('admin.fields.title'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\Textarea::make('description')
-                            ->label('فوائد الدرس')
+                            ->label(__('admin.fields.benefits'))
                             ->rows(3)
                             ->nullable(),
                         Forms\Components\TextInput::make('lesson_name')
-                            ->label('اسم الدرس')
+                            ->label(__('admin.fields.lesson_name'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('page_number')
-                            ->label('رقم الصفحة')
+                            ->label(__('admin.fields.from_page'))
                             ->nullable()
                             ->maxLength(255),
                     ])->columns(2),
 
-                Forms\Components\Section::make('التخصيص والتوقيت')
+                Forms\Components\Section::make(__('admin.fields.timing'))
                     ->schema([
                         Forms\Components\Select::make('subject_id')
-                            ->label('المادة الدراسية')
+                            ->label(__('admin.fields.subject'))
                             ->relationship('subject', 'title')
                             ->required()
                             ->searchable()
@@ -68,7 +65,7 @@ class HomeworkResource extends Resource
                             })
                             ->reactive(),
                         Forms\Components\Select::make('teacher_id')
-                            ->label('المعلم المسؤول')
+                            ->label(__('admin.fields.teacher'))
                             ->options(function () {
                                 $user = auth()->user();
                                 if ($user->hasRole('teacher')) {
@@ -82,21 +79,21 @@ class HomeworkResource extends Resource
                             ->nullable()
                             ->disabled(fn () => auth()->user()->hasRole('teacher')),
                         Forms\Components\DatePicker::make('due_date')
-                            ->label('تاريخ التسليم')
+                            ->label(__('admin.fields.due_date'))
                             ->native(false)
                             ->nullable(),
                         Forms\Components\TextInput::make('max_score')
-                            ->label('الدرجة القصوى')
+                            ->label(__('admin.fields.max_score'))
                             ->numeric()
                             ->default(null)
                             ->nullable()
                             ->minValue(1),
                     ])->columns(2),
 
-                Forms\Components\Section::make('الإعدادات')
+                Forms\Components\Section::make(__('admin.fields.settings'))
                     ->schema([
                         Forms\Components\Toggle::make('active')
-                            ->label('نشط')
+                            ->label(__('admin.fields.active'))
                             ->default(true),
                     ]),
             ]);
@@ -111,7 +108,7 @@ class HomeworkResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('lesson_name')
-                    ->label('اسم الدرس')
+                    ->label('Ders Adı')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('page_number')
@@ -123,23 +120,23 @@ class HomeworkResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('teacher.name')
-                    ->label('المعلم')
+                    ->label('Öğretmen')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('due_date')
-                    ->label('تاريخ التسليم')
+                    ->label('Teslim Tarihi')
                     ->date('d/m/Y')
                     ->sortable()
                     ->color(fn ($record) => $record->due_date < now() ? 'danger' : 'success'),
                 Tables\Columns\TextColumn::make('max_score')
-                    ->label('الدرجة القصوى')
+                    ->label('Maksimum Puan')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('active')
                     ->label('نشط')
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -156,16 +153,16 @@ class HomeworkResource extends Resource
                     ->searchable()
                     ->preload(),
                 Tables\Filters\SelectFilter::make('teacher_id')
-                    ->label('المعلم')
+                    ->label('Öğretmen')
                     ->relationship('teacher', 'name')
                     ->searchable()
                     ->preload(),
                 Tables\Filters\Filter::make('due_date')
                     ->form([
                         Forms\Components\DatePicker::make('due_from')
-                            ->label('من تاريخ'),
+                            ->label('Başlangıç Tarihi'),
                         Forms\Components\DatePicker::make('due_until')
-                            ->label('إلى تاريخ'),
+                            ->label('Bitiş Tarihi'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query

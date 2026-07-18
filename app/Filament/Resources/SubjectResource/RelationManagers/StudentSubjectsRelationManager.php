@@ -25,7 +25,7 @@ class StudentSubjectsRelationManager extends RelationManager
         return $form
             ->schema([
                 Forms\Components\Select::make('student_id')
-                    ->label('الطالب')
+                    ->label('Öğrenci')
                     ->relationship('student', 'name')
                     ->required()
                     ->searchable()
@@ -45,11 +45,11 @@ class StudentSubjectsRelationManager extends RelationManager
             ->recordTitleAttribute('student.name')
             ->columns([
                 Tables\Columns\TextColumn::make('student.name')
-                    ->label('اسم الطالب')
+                    ->label('Öğrenci Adı')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('student.email')
-                    ->label('البريد الإلكتروني')
+                    ->label('E-posta')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('enrolled_at')
                     ->label('تاريخ التسجيل')
@@ -60,7 +60,7 @@ class StudentSubjectsRelationManager extends RelationManager
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

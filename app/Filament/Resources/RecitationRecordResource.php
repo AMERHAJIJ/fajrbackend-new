@@ -19,54 +19,67 @@ class RecitationRecordResource extends Resource
     protected static ?string $model = RecitationRecord::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-microphone';
-    protected static ?string $navigationLabel = 'تسجيلات التلاوة';
-    protected static ?string $modelLabel = 'تسجيل تلاوة';
-    protected static ?string $pluralModelLabel = 'تسجيلات التلاوة';
-    protected static ?string $navigationGroup = 'إدارة التعليم';
+    public static function getNavigationLabel(): string { return __('admin.resources.recitation_record.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.recitation_record.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.recitation_record.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.education_management'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات التسجيل')
+                Forms\Components\Section::make(__('admin.resources.recitation_record.label'))
                     ->schema([
-                        Forms\Components\Select::make('student_id')
-                            ->label('الطالب')
-                            ->relationship('student', 'name')
+                        Forms\Components\Select::make('subject_id')
+                            ->label('الحلقة')
+                            ->options(function () {
+                                $user = auth()->user();
+                                if ($user->hasRole('teacher')) {
+                                    return \App\Models\Subject::where('is_quran', true)
+                                        ->whereHas('teachers', function ($q) use ($user) {
+                                            $q->where('teacher_id', $user->id);
+                                        })
+                                        ->pluck('title', 'id');
+                                }
+                                return \App\Models\Subject::where('is_quran', true)->pluck('title', 'id');
+                            })
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->options(function () {
-                                if (auth()->user()->hasRole('student')) {
-                                    return [auth()->id() => auth()->user()->name];
+                            ->reactive()
+                            ->afterStateUpdated(fn (callable $set) => $set('student_id', null)),
+
+                        Forms\Components\Select::make('student_id')
+                            ->label(__('admin.fields.student'))
+                            ->options(function (callable $get) {
+                                $subjectId = $get('subject_id');
+                                if (!$subjectId) {
+                                    return [];
                                 }
-                                
-                                if (auth()->user()->hasRole('teacher')) {
-                                    return User::role('student')
-                                        ->whereHas('subjectsAsStudent', function($query) {
-                                            $query->whereHas('teachers', function($q) {
-                                                $q->where('teacher_id', auth()->id());
-                                            });
-                                        })
-                                        ->pluck('name', 'id');
-                                }
-                                
-                                return User::role('student')->pluck('name', 'id');
+                                return \App\Models\User::role('student')
+                                    ->whereHas('subjectsAsStudent', function ($q) use ($subjectId) {
+                                        $q->where('subject_id', $subjectId);
+                                    })
+                                    ->pluck('name', 'id');
                             })
-                            ->default(auth()->user()->hasRole('student') ? auth()->id() : null),
-                        
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+
                         Forms\Components\DatePicker::make('date')
-                            ->label('تاريخ التسجيل')
+                            ->label(__('admin.fields.date'))
                             ->required()
                             ->default(now())
                             ->maxDate(now()),
+                        Forms\Components\Hidden::make('teacher_id')
+                            ->default(auth()->id()),
 
                         Forms\Components\Repeater::make('surahs')
-                            ->label('السور')
+                            ->label(__('admin.resources.surah.plural_label'))
                             ->relationship('surahs')
                             ->schema([
                                 Forms\Components\Select::make('id')
-                                    ->label('السورة')
+                                    ->label(__('admin.resources.surah.label'))
                                     ->relationship('surah', 'name')
                                     ->searchable()
                                     ->preload()
@@ -81,10 +94,10 @@ class RecitationRecordResource extends Resource
                                     ),
                                 
                                 Forms\Components\Select::make('pivot.type')
-                                    ->label('نوع التسجيل')
+                                    ->label(__('admin.fields.type'))
                                     ->options([
-                                        'ayah' => 'من آية إلى آية',
-                                        'page' => 'من صفحة إلى صفحة'
+                                        'ayah' => __('admin.options.ayah_range'),
+                                        'page' => __('admin.options.page_range')
                                     ])
                                     ->default('ayah')
                                     ->live()
@@ -94,7 +107,7 @@ class RecitationRecordResource extends Resource
                                 // حقل مشروط للآيات
                                 Forms\Components\Group::make([
                                     Forms\Components\TextInput::make('pivot.fromAyeh')
-                                        ->label('من آية')
+                                        ->label(__('admin.fields.from_ayah'))
                                         ->numeric()
                                         ->minValue(1)
                                         ->maxValue(286)
@@ -102,7 +115,7 @@ class RecitationRecordResource extends Resource
                                         ->visible(fn($get) => $get('pivot.type') === 'ayah')
                                         ->required(fn($get) => $get('pivot.type') === 'ayah'),
                                     Forms\Components\TextInput::make('pivot.toAyeh')
-                                        ->label('إلى آية')
+                                        ->label(__('admin.fields.to_ayah'))
                                         ->numeric()
                                         ->minValue(1)
                                         ->maxValue(286)
@@ -115,7 +128,7 @@ class RecitationRecordResource extends Resource
                                 // حقل مشروط للصفحات
                                 Forms\Components\Group::make([
                                     Forms\Components\TextInput::make('pivot.fromPage')
-                                        ->label('من صفحة')
+                                        ->label(__('admin.fields.from_page'))
                                         ->numeric()
                                         ->minValue(1)
                                         ->maxValue(604)
@@ -123,7 +136,7 @@ class RecitationRecordResource extends Resource
                                         ->visible(fn($get) => $get('pivot.type') === 'page')
                                         ->required(fn($get) => $get('pivot.type') === 'page'),
                                     Forms\Components\TextInput::make('pivot.toPage')
-                                        ->label('إلى صفحة')
+                                        ->label(__('admin.fields.to_page'))
                                         ->numeric()
                                         ->minValue(1)
                                         ->maxValue(604)
@@ -136,14 +149,14 @@ class RecitationRecordResource extends Resource
                             ->columns(1)
                             ->defaultItems(1)
                             ->minItems(1)
-                            ->addActionLabel('إضافة سورة أخرى')
+                            ->addActionLabel(__('admin.actions.add_another_surah'))
                             ->reorderable()
                             ->columnSpanFull()
-                            ->createItemButtonLabel('إضافة سورة')
+                            ->createItemButtonLabel(__('admin.actions.add_surah'))
                             ->collapsible()
                             ->itemLabel(fn (array $state): ?string => 
                                 isset($state['id']) 
-                                    ? Surah::find($state['id'])?->name . ' (من ' . ($state['pivot']['fromAyeh'] ?? 1) . ' إلى ' . ($state['pivot']['toAyeh'] ?? 1) . ')'
+                                    ? Surah::find($state['id'])?->name . ' (' . __('admin.sections.from') . ' ' . ($state['pivot']['fromAyeh'] ?? 1) . ' ' . __('admin.sections.to') . ' ' . ($state['pivot']['toAyeh'] ?? 1) . ')'
                                     : null
                             )
                             ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
@@ -219,14 +232,18 @@ class RecitationRecordResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('student.name')
-                    ->label('الطالب')
+                    ->label(__('admin.fields.student'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('subject.title')
+                    ->label('الحلقة')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('surahs')
-                    ->label('السور')
+                    ->label(__('admin.resources.surah.plural_label'))
                     ->formatStateUsing(function ($record) {
                         return $record->surahs->map(function ($surah) {
-                            $type = $surah->pivot->type === 'ayah' ? 'آيات' : 'صفحات';
+                            $type = $surah->pivot->type === 'ayah' ? __('admin.fields.from_ayah') : __('admin.fields.from_page');
                             if ($surah->pivot->type === 'ayah') {
                                 return $surah->name . ' (من آية ' . $surah->pivot->fromAyeh . ' إلى ' . $surah->pivot->toAyeh . ')';
                             } else {
@@ -237,36 +254,51 @@ class RecitationRecordResource extends Resource
                     ->searchable()
                     ->wrap(),
                 Tables\Columns\TextColumn::make('date')
-                    ->label('التاريخ')
+                    ->label(__('admin.fields.date'))
                     ->date('d/m/Y')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('score')
-                    ->label('الدرجة')
+                    ->label(__('admin.fields.score'))
                     ->suffix('%')
                     ->sortable()
                     ->color(fn ($state) => $state >= 80 ? 'success' : ($state >= 60 ? 'warning' : 'danger')),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label(__('admin.fields.created_at'))
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('subject_id')
+                    ->label('الحلقة')
+                    ->options(function () {
+                        $user = auth()->user();
+                        if ($user->hasRole('teacher')) {
+                            return \App\Models\Subject::where('is_quran', true)
+                                ->whereHas('teachers', function ($q) use ($user) {
+                                    $q->where('teacher_id', $user->id);
+                                })
+                                ->pluck('title', 'id');
+                        }
+                        return \App\Models\Subject::where('is_quran', true)->pluck('title', 'id');
+                    })
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('student')
-                    ->label('الطالب')
+                    ->label(__('admin.fields.student'))
                     ->relationship('student', 'name')
                     ->searchable()
                     ->preload(),
                 Tables\Filters\SelectFilter::make('surah')
-                    ->label('السورة')
+                    ->label(__('admin.fields.surah'))
                     ->relationship('surahs', 'name')
                     ->searchable()
                     ->preload(),
                 Tables\Filters\SelectFilter::make('type')
-                    ->label('نوع التسجيل')
+                    ->label(__('admin.fields.type'))
                     ->options([
-                        'ayah' => 'آيات',
-                        'page' => 'صفحات'
+                        'ayah' => __('admin.fields.from_ayah'),
+                        'page' => __('admin.fields.from_page')
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         if (!$data['value']) {
@@ -279,9 +311,9 @@ class RecitationRecordResource extends Resource
                 Tables\Filters\Filter::make('date')
                     ->form([
                         Forms\Components\DatePicker::make('from')
-                            ->label('من تاريخ'),
+                            ->label('Başlangıç Tarihi'),
                         Forms\Components\DatePicker::make('until')
-                            ->label('إلى تاريخ'),
+                            ->label('Bitiş Tarihi'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
@@ -337,7 +369,7 @@ class RecitationRecordResource extends Resource
             return $query->whereHas('student', function ($query) {
                 $query->whereHas('subjectsAsStudent', function ($query) {
                     $query->whereHas('teachers', function ($query) {
-                        $query->where('teacher_id', auth()->id());
+                        $query->where('users.id', auth()->id());
                     });
                 });
             });

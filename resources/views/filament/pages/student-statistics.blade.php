@@ -21,7 +21,7 @@
     <div class="space-y-6">
         {{ $this->form }}
         
-        @if(!$this->selectedSubject || !$this->selectedDate)
+        @if(!$this->selectedSubject || ($this->reportType === 'daily' && !$this->selectedDate))
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
                 <div class="flex">
                     <div class="flex-shrink-0">
@@ -31,10 +31,10 @@
                     </div>
                     <div class="ml-3">
                         <h3 class="text-sm font-medium text-yellow-800">
-                            يرجى اختيار المادة والتاريخ
+                            يرجى اختيار الحلقة والخيارات
                         </h3>
                         <div class="mt-2 text-sm text-yellow-700">
-                            <p>يجب اختيار مادة دراسية وتاريخ أولاً لعرض إحصائيات الطلاب المسجلين فيها.</p>
+                            <p>يجب اختيار الحلقة ونوع التقرير والتاريخ (للتقرير اليومي) لعرض إحصائيات الطلاب.</p>
                         </div>
                     </div>
                 </div>
@@ -43,10 +43,18 @@
             <div class="bg-white rounded-lg shadow">
                 <div class="px-6 py-4 border-b border-gray-200">
                     <h3 class="text-lg font-medium text-gray-900">
-                        جدول إحصائيات الطلاب
+                        @if($this->reportType === 'daily')
+                            جدول الإحصائيات اليومية للطلاب
+                        @else
+                            جدول التقرير التراكمي العام للطلاب
+                        @endif
                     </h3>
                     <p class="mt-1 text-sm text-gray-500">
-                        عرض بيانات الطلاب للحضور والتسميع والنتائج - {{ \App\Models\Subject::find($this->selectedSubject)?->title ?? '' }} - {{ $this->selectedDate }}
+                        @if($this->reportType === 'daily')
+                            عرض حضور وتسميع وتقييم الطلاب لحلقة: {{ \App\Models\Subject::find($this->selectedSubject)?->title ?? '' }} - تاريخ: {{ \Carbon\Carbon::parse($this->selectedDate)->format('d/m/Y') }}
+                        @else
+                            عرض الإنجاز التراكمي، الحضور الكلي، المحصلات والأستاذ المتابع لحلقة: {{ \App\Models\Subject::find($this->selectedSubject)?->title ?? '' }}
+                        @endif
                     </p>
                 </div>
                 

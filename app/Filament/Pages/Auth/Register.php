@@ -36,7 +36,7 @@ class Register extends BaseRegister
     protected function getUserNameFormComponent(): Component
     {
         return TextInput::make('username')
-            ->label('اسم المستخدم')
+            ->label('Kullanıcı Adı')
             ->required()
             ->unique('users', 'username')
             ->maxLength(255);
@@ -45,7 +45,7 @@ class Register extends BaseRegister
     protected function getBirthdayFormComponent(): Component
     {
         return DatePicker::make('birthday')
-            ->label('تاريخ الميلاد')
+            ->label('Doğum Tarihi')
             ->required()
             ->maxDate(now()->subYears(5));
     }
@@ -53,7 +53,7 @@ class Register extends BaseRegister
     protected function getPhoneFormComponent(): Component
     {
         return TextInput::make('phone')
-            ->label('رقم الهاتف')
+            ->label('Telefon Numarası')
             ->required()
             ->tel()
             ->maxLength(20);
@@ -62,7 +62,7 @@ class Register extends BaseRegister
     protected function getAddressFormComponent(): Component
     {
         return TextInput::make('address')
-            ->label('العنوان')
+            ->label('Adres')
             ->required()
             ->maxLength(500);
     }

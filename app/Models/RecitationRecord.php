@@ -10,6 +10,17 @@ class RecitationRecord extends Model
 {
     protected $guarded = [];
 
+    protected static function booted()
+    {
+        static::created(function ($record) {
+            \App\Services\TaskTrackingService::track(
+                $record->teacher_id ?? auth()->id(),
+                $record->subject_id,
+                'recitation_recorded'
+            );
+        });
+    }
+
     /**
      * The attributes that should be cast.
      *

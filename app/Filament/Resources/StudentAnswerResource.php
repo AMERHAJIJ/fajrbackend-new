@@ -17,43 +17,48 @@ class StudentAnswerResource extends Resource
 {
     protected static ?string $model = StudentAnswer::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
-
-    protected static ?string $navigationLabel = 'إجابات الطلاب';
-
-    protected static ?string $modelLabel = 'إجابة طالب';
-
-    protected static ?string $pluralModelLabel = 'إجابات الطلاب';
-
-    protected static ?string $navigationGroup = 'إدارة الاختبارات';
+    protected static ?string $navigationIcon = 'heroicon-o-check-badge';
+    public static function getNavigationLabel(): string { 
+        $label = __('admin.resources.student_answer.plural_label');
+        return ($label === 'admin.resources.student_answer.plural_label') ? 'Öğrenci Cevapları' : $label;
+    }
+    public static function getModelLabel(): string { 
+        $label = __('admin.resources.student_answer.label');
+        return ($label === 'admin.resources.student_answer.label') ? 'Öğrenci Cevabı' : $label;
+    }
+    public static function getPluralModelLabel(): string { 
+        $label = __('admin.resources.student_answer.plural_label');
+        return ($label === 'admin.resources.student_answer.plural_label') ? 'Öğrenci Cevapları' : $label;
+    }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.education_management'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات الإجابة')
+                Forms\Components\Section::make(__('admin.resources.student_answer.label'))
                     ->schema([
                         Forms\Components\Select::make('student_id')
-                            ->label('الطالب')
+                            ->label(__('admin.fields.student'))
                             ->relationship('student', 'name')
                             ->searchable()
                             ->required()
                             ->disabled(),
                         Forms\Components\Select::make('quiz_id')
-                            ->label('الاختبار')
+                            ->label(__('admin.resources.quiz.label'))
                             ->relationship('quiz', 'title')
                             ->searchable()
                             ->required()
                             ->disabled(),
                         Forms\Components\Select::make('question_id')
-                            ->label('السؤال')
-                            ->relationship('question', 'name')
+                            ->label(__('admin.resources.question.label'))
+                            ->relationship('question', 'content')
                             ->searchable()
                             ->required()
                             ->disabled(),
                         Forms\Components\Select::make('answer_id')
-                            ->label('الإجابة المختارة')
-                            ->relationship('answer', 'title')
+                            ->label(__('admin.resources.answer.label'))
+                            ->relationship('answer', 'content')
                             ->searchable()
                             ->required()
                             ->disabled(),
@@ -66,23 +71,23 @@ class StudentAnswerResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('student.name')
-                    ->label('الطالب')
+                    ->label(__('admin.fields.student'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('quiz.title')
-                    ->label('الاختبار')
+                    ->label(__('admin.resources.quiz.label'))
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('question.name')
-                    ->label('السؤال')
+                Tables\Columns\TextColumn::make('question.content')
+                    ->label(__('admin.resources.question.label'))
                     ->searchable()
                     ->limit(40),
-                Tables\Columns\TextColumn::make('answer.title')
-                    ->label('الإجابة المختارة')
+                Tables\Columns\TextColumn::make('answer.content')
+                    ->label(__('admin.resources.answer.label'))
                     ->searchable()
                     ->limit(30),
                 Tables\Columns\IconColumn::make('answer.isCorrect')
-                    ->label('صحيحة؟')
+                    ->label(__('admin.fields.is_correct'))
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
@@ -95,7 +100,7 @@ class StudentAnswerResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('student_id')
-                    ->label('الطالب')
+                    ->label('Öğrenci')
                     ->relationship('student', 'name')
                     ->searchable(),
                 Tables\Filters\SelectFilter::make('quiz_id')

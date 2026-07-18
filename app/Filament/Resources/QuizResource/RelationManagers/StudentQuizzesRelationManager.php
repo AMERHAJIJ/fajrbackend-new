@@ -25,12 +25,12 @@ class StudentQuizzesRelationManager extends RelationManager
         return $form
             ->schema([
                 Forms\Components\Select::make('student_id')
-                    ->label('الطالب')
+                    ->label('Öğrenci')
                     ->relationship('student', 'name')
                     ->required()
                     ->searchable(),
                 Forms\Components\TextInput::make('score')
-                    ->label('النتيجة')
+                    ->label('Sonuç')
                     ->numeric()
                     ->minValue(0)
                     ->maxValue(100)
@@ -54,14 +54,14 @@ class StudentQuizzesRelationManager extends RelationManager
             ->recordTitleAttribute('student.name')
             ->columns([
                 Tables\Columns\TextColumn::make('student.name')
-                    ->label('الطالب')
+                    ->label('Öğrenci')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('student.email')
-                    ->label('البريد الإلكتروني')
+                    ->label('E-posta')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('score')
-                    ->label('النتيجة')
+                    ->label('Sonuç')
                     ->suffix('%')
                     ->sortable()
                     ->color(fn ($state) => $state >= 60 ? 'success' : 'danger'),

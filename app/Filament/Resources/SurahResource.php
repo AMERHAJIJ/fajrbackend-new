@@ -16,14 +16,10 @@ class SurahResource extends Resource
     protected static ?string $model = Surah::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-book-open';
-
-    protected static ?string $navigationLabel = 'السور القرآنية';
-
-    protected static ?string $modelLabel = 'سورة';
-
-    protected static ?string $pluralModelLabel = 'السور القرآنية';
-
-    protected static ?string $navigationGroup = 'إدارة التلاوة';
+    public static function getNavigationLabel(): string { return __('admin.resources.surah.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.surah.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.surah.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.education_management'); }
 
     public static function form(Form $form): Form
     {
@@ -42,7 +38,7 @@ class SurahResource extends Resource
                             ->minValue(1)
                             ->maxValue(114),
                         Forms\Components\TextInput::make('verses_count')
-                            ->label('عدد الآيات')
+                            ->label('Ayet Sayısı')
                             ->numeric()
                             ->required()
                             ->minValue(1),
@@ -55,7 +51,7 @@ class SurahResource extends Resource
                             ->required(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('معلومات إضافية')
+                Forms\Components\Section::make('Ek Bilgiler')
                     ->schema([
                         Forms\Components\Textarea::make('description')
                             ->label('وصف السورة')
@@ -73,7 +69,7 @@ class SurahResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('number')
-                    ->label('الرقم')
+                    ->label('Numara')
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
@@ -81,10 +77,10 @@ class SurahResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('verses_count')
-                    ->label('عدد الآيات')
+                    ->label('Ayet Sayısı')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('type')
-                    ->label('النوع')
+                    ->label('Tür')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'مكية' => 'success',
@@ -100,7 +96,7 @@ class SurahResource extends Resource
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

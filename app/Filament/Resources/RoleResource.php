@@ -16,22 +16,19 @@ class RoleResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-check';
 
-    protected static ?string $navigationLabel = 'الأدوار';
-
-    protected static ?string $modelLabel = 'دور';
-
-    protected static ?string $pluralModelLabel = 'الأدوار';
-
-    protected static ?string $navigationGroup = 'إدارة النظام';
+    public static function getNavigationLabel(): string { return __('admin.resources.role.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.role.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.role.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.user_management'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات الدور')
+                Forms\Components\Section::make(__('admin.resources.role.label'))
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('اسم الدور')
+                            ->label(__('admin.fields.name'))
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true),
@@ -42,10 +39,10 @@ class RoleResource extends Resource
                             ->maxLength(255),
                     ])->columns(2),
 
-                Forms\Components\Section::make('الصلاحيات')
+                Forms\Components\Section::make(__('admin.resources.permission.plural_label'))
                     ->schema([
                         Forms\Components\CheckboxList::make('permissions')
-                            ->label('الصلاحيات')
+                            ->label(__('admin.resources.permission.plural_label'))
                             ->relationship('permissions', 'name')
                             ->searchable()
                             ->bulkToggleable()
@@ -75,7 +72,7 @@ class RoleResource extends Resource
                     ->counts('users')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

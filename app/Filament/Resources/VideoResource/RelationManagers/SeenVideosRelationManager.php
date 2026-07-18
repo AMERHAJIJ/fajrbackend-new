@@ -14,18 +14,18 @@ class SeenVideosRelationManager extends RelationManager
 {
     protected static string $relationship = 'seenVideos';
 
-    protected static ?string $title = 'المشاهدات';
+    protected static ?string $title = 'Görüntülenme';
 
     protected static ?string $modelLabel = 'مشاهدة';
 
-    protected static ?string $pluralModelLabel = 'المشاهدات';
+    protected static ?string $pluralModelLabel = 'Görüntülenme';
 
     public function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Select::make('student_id')
-                    ->label('الطالب')
+                    ->label('Öğrenci')
                     ->relationship('student', 'name')
                     ->required()
                     ->searchable(),
@@ -41,11 +41,11 @@ class SeenVideosRelationManager extends RelationManager
             ->recordTitleAttribute('student.name')
             ->columns([
                 Tables\Columns\TextColumn::make('student.name')
-                    ->label('الطالب')
+                    ->label('Öğrenci')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('student.email')
-                    ->label('البريد الإلكتروني')
+                    ->label('E-posta')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('watched_at')
                     ->label('تاريخ المشاهدة')

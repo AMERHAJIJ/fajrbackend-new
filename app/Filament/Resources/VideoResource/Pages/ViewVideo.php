@@ -14,7 +14,7 @@ class ViewVideo extends ViewRecord
     {
         return [
             Actions\EditAction::make()
-                ->label('تعديل'),
+                ->label('Düzenle'),
         ];
     }
 }

@@ -19,34 +19,35 @@ class SubjectResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
 
-    protected static ?string $navigationLabel = 'المواد الدراسية';
-
-    protected static ?string $modelLabel = 'مادة دراسية';
-
-    protected static ?string $pluralModelLabel = 'المواد الدراسية';
-
-    protected static ?string $navigationGroup = 'إدارة التعليم';
+    public static function getNavigationLabel(): string { return __('admin.resources.subject.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.subject.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.subject.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.education_management'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات المادة')
+                Forms\Components\Section::make(__('admin.resources.subject.label'))
                     ->schema([
                         Forms\Components\TextInput::make('title')
-                            ->label('عنوان المادة')
+                            ->label(__('admin.fields.title'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\Textarea::make('description')
-                            ->label('وصف المادة')
+                            ->label(__('admin.fields.description'))
                             ->maxLength(1000)
                             ->columnSpanFull(),
                         Forms\Components\Toggle::make('active')
-                            ->label('نشطة')
+                            ->label(__('admin.fields.active'))
                             ->default(true),
+                        Forms\Components\Toggle::make('is_quran')
+                            ->label(__('admin.fields.is_quran'))
+                            ->helperText('تفعيل هذا الخيار يجعل النظام يتعرف على هذه المادة في قسم التلاوة والتتبع التلقائي')
+                            ->default(false),
                     ])->columns(2),
 
-                Forms\Components\Section::make('المعلمين')
+                Forms\Components\Section::make(__('admin.resources.user.teachers'))
                     ->schema([
                         Forms\Components\CheckboxList::make('teachers')
                             ->label('المعلمين المسؤولين')
@@ -59,7 +60,7 @@ class SubjectResource extends Resource
                             ->columns(2),
                     ]),
 
-                Forms\Components\Section::make('الطلاب')
+                Forms\Components\Section::make(__('admin.resources.user.students'))
                     ->schema([
                         Forms\Components\CheckboxList::make('students')
                             ->label('الطلاب المسجلين')
@@ -79,11 +80,11 @@ class SubjectResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('title')
-                    ->label('عنوان المادة')
+                    ->label(__('admin.fields.title'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('description')
-                    ->label('الوصف')
+                    ->label(__('admin.fields.description'))
                     ->limit(50)
                     ->searchable(),
                 Tables\Columns\TextColumn::make('teachers_count')
@@ -94,12 +95,19 @@ class SubjectResource extends Resource
                     ->label('عدد الطلاب')
                     ->counts('students')
                     ->sortable(),
+                Tables\Columns\IconColumn::make('is_quran')
+                    ->label(__('admin.fields.is_quran'))
+                    ->boolean()
+                    ->trueIcon('heroicon-o-book-open')
+                    ->falseIcon('heroicon-o-minus')
+                    ->trueColor('success')
+                    ->sortable(),
                 Tables\Columns\IconColumn::make('active')
                     ->label('نشطة')
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

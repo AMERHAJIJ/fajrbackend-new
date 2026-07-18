@@ -19,6 +19,22 @@ class Quiz extends Model
     }
 
     /**
+     * Get the subject that owns the quiz.
+     */
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class, 'subject_id', 'id');
+    }
+
+    /**
+     * Get the teacher that created the quiz.
+     */
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'teacher_id', 'id');
+    }
+
+    /**
      * Get the questions for the quiz.
      */
     public function questions(): HasMany

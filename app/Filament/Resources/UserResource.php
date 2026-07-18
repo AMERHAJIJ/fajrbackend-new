@@ -22,80 +22,130 @@ class UserResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationLabel = 'المستخدمين';
+    public static function getNavigationLabel(): string { return __('admin.resources.user.plural_label'); }
 
-    protected static ?string $modelLabel = 'مستخدم';
+    public static function getModelLabel(): string { return __('admin.resources.user.label'); }
 
-    protected static ?string $pluralModelLabel = 'المستخدمين';
+    public static function getPluralModelLabel(): string { return __('admin.resources.user.plural_label'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('المعلومات الأساسية')
+                Forms\Components\Section::make(__('admin.resources.user.label'))
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('الاسم')
+                            ->label(__('admin.fields.name'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('username')
-                            ->label('اسم المستخدم')
+                            ->label(__('admin.fields.username'))
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
                         Forms\Components\TextInput::make('email')
-                            ->label('البريد الإلكتروني')
+                            ->label(__('admin.fields.email'))
                             ->email()
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
                     ])->columns(3),
 
-                Forms\Components\Section::make('كلمة المرور')
+                Forms\Components\Section::make(__('admin.fields.password'))
                     ->schema([
                         Forms\Components\TextInput::make('password')
-                            ->label('كلمة المرور')
+                            ->label(__('admin.fields.password'))
                             ->password()
                             ->dehydrateStateUsing(fn ($state) => Hash::make($state))
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $context): bool => $context === 'create'),
                         Forms\Components\TextInput::make('password_confirmation')
-                            ->label('تأكيد كلمة المرور')
+                            ->label(__('admin.fields.password_confirmation'))
                             ->password()
                             ->dehydrated(false)
                             ->required(fn (string $context): bool => $context === 'create'),
                     ])->columns(2),
 
-                Forms\Components\Section::make('المعلومات الشخصية')
+                Forms\Components\Section::make(__('admin.fields.status'))
                     ->schema([
                         Forms\Components\DatePicker::make('birthday')
-                            ->label('تاريخ الميلاد')
+                            ->label(__('admin.fields.birthday'))
                             ->required()
                             ->maxDate(now()->subYears(5)),
                         Forms\Components\TextInput::make('phone')
-                            ->label('رقم الهاتف')
+                            ->label(__('admin.fields.phone'))
                             ->tel()
                             ->required()
                             ->maxLength(20),
                         Forms\Components\Textarea::make('address')
-                            ->label('العنوان')
+                            ->label(__('admin.fields.address'))
                             ->required()
                             ->maxLength(500)
                             ->columnSpanFull(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('الإعدادات')
+                Forms\Components\Section::make(__('admin.fields.settings'))
                     ->schema([
                         Forms\Components\FileUpload::make('image')
-                            ->label('الصورة الشخصية')
+                            ->label(__('admin.fields.image'))
                             ->image()
                             ->imageEditor()
                             ->directory('users')
                             ->nullable(),
                         Forms\Components\Toggle::make('active')
-                            ->label('نشط')
+                            ->label(__('admin.fields.active'))
                             ->default(true),
                     ])->columns(2),
+
+                Forms\Components\Section::make('معلومات الطالب والعائلة')
+                    ->schema([
+                        Forms\Components\Select::make('parent_id')
+                            ->label('ولي الأمر')
+                            ->relationship('parent', 'name', fn (Builder $query) => $query->whereHas('roles', fn ($q) => $q->where('name', 'parent')))
+                            ->searchable()
+                            ->preload()
+                            ->nullable(),
+                        Forms\Components\Select::make('age_group')
+                            ->label('الفئة العمرية')
+                            ->options([
+                                'nashieen' => 'ناشئين (7-10 سنوات)',
+                                'yafeen' => 'يافعين (11-14 سنة)',
+                                'fityan' => 'فتيان (15 سنة فما فوق)',
+                            ])
+                            ->nullable(),
+                        Forms\Components\TextInput::make('school')
+                            ->label('المدرسة')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('father_phone')
+                            ->label('رقم هاتف الأب')
+                            ->tel()
+                            ->maxLength(20),
+                        Forms\Components\TextInput::make('father_job')
+                            ->label('عمل الأب')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('mother_phone')
+                            ->label('رقم هاتف الأم')
+                            ->tel()
+                            ->maxLength(20),
+                        Forms\Components\TextInput::make('mother_job')
+                            ->label('عمل الأم')
+                            ->maxLength(255),
+                        Forms\Components\Toggle::make('wants_bus')
+                            ->label('مشترك بالمواصلات')
+                            ->default(false),
+                        Forms\Components\TextInput::make('quran_pages')
+                            ->label('مقدار حفظ القرآن (صفحة)')
+                            ->numeric()
+                            ->default(0),
+                        Forms\Components\Textarea::make('medical_notes')
+                            ->label('الملاحظات الصحية')
+                            ->columnSpanFull()
+                            ->rows(3),
+                        Forms\Components\Textarea::make('general_notes')
+                            ->label('ملاحظات عامة')
+                            ->columnSpanFull()
+                            ->rows(3),
+                    ])->columns(3),
 
                 Forms\Components\Section::make('الأدوار والصلاحيات')
                     ->schema([
@@ -134,53 +184,21 @@ class UserResource extends Resource
                 }
                 return $query->whereRaw('1 = 0'); // لا يرى أحد
             })
-            ->headerActions([
-                Tables\Actions\Action::make('export_students')
-                    ->label('تصدير تقرير الطلاب')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->color('success')
-                    ->action(function ($livewire) {
-                        $date = now()->format('Y-m-d');
-                        $subjectId = $livewire->tableFilters['subject_id']['value'] ?? null;
-                        
-                        // Validate if subject is selected (if needed)
-                        if (!$subjectId) {
-                            Notification::make()
-                                ->title('خطأ')
-                                ->body('يجب اختيار مادة أولاً')
-                                ->danger()
-                                ->send();
-                            return;
-                        }
-                        
-                        // تحديث Google Sheet بتقرير الطلاب
-                        $googleSheetsService = app(GoogleSheetsService::class);
-                        
-                        try {
-                            $googleSheetsService->updateStudentReport($subjectId, $date);
-                            
-                            Notification::make()
-                                ->title('تم التحديث بنجاح')
-                                ->body('تم تحديث بيانات الطلاب في Google Sheet بنجاح')
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('حدث خطأ')
-                                ->body('فشل تحديث Google Sheet: ' . $e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    })
-                    ->visible(fn () => auth()->user()->can('export students')),
-            ])
+            ->headerActions([])
             ->filters([
                 \Filament\Tables\Filters\SelectFilter::make('subject_id')
-                    ->label('المادة')
+                    ->label('Ders')
                     ->relationship('subjectsAsStudent', 'title')
                     ->searchable()
                     ->preload()
                     ->visible(fn () => auth()->user()->can('export students')),
+                \Filament\Tables\Filters\SelectFilter::make('age_group')
+                    ->label('الفئة العمرية')
+                    ->options([
+                        'nashieen' => 'ناشئين',
+                        'yafeen' => 'يافعين',
+                        'fityan' => 'فتيان',
+                    ]),
                 Tables\Filters\TernaryFilter::make('active')
                     ->label('نشط')
                     ->boolean()
@@ -189,9 +207,9 @@ class UserResource extends Resource
                 Tables\Filters\Filter::make('created_at')
                     ->form([
                         Forms\Components\DatePicker::make('created_from')
-                            ->label('من تاريخ'),
+                            ->label('Başlangıç Tarihi'),
                         Forms\Components\DatePicker::make('created_until')
-                            ->label('إلى تاريخ'),
+                            ->label('Bitiş Tarihi'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
@@ -206,6 +224,7 @@ class UserResource extends Resource
                     })
             ])
             ->actions([
+                \App\Filament\Resources\UserResource\Actions\SendLoginWhatsAppAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -216,29 +235,49 @@ class UserResource extends Resource
             ])
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->label('الصورة')
+                    ->label('Resim')
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('الاسم')
+                    ->label(__('admin.fields.name'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('username')
-                    ->label('اسم المستخدم')
+                    ->label(__('admin.fields.username'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('email')
-                    ->label('البريد الإلكتروني')
+                    ->label(__('admin.fields.email'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('الهاتف')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('age_group')
+                    ->label('الفئة العمرية')
+                    ->badge()
+                    ->color(fn ($state): string => match ($state) {
+                        'nashieen' => 'primary',
+                        'yafeen' => 'warning',
+                        'fityan' => 'success',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn ($state) => match($state) {
+                        'nashieen' => 'ناشئين',
+                        'yafeen' => 'يافعين',
+                        'fityan' => 'فتيان',
+                        default => $state
+                    })
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('parent.name')
+                    ->label('ولي الأمر')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('active')
-                    ->label('نشط')
+                    ->label(__('admin.fields.active'))
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label(__('admin.fields.created_at'))
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

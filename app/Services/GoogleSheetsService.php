@@ -7,6 +7,11 @@ use Google\Service\Sheets;
 use Illuminate\Support\Facades\Log;
 use Google\Service\Sheets\ValueRange;
 
+// [شرح أكاديمي للمناقشة]:
+// الهدف من هذه الخدمة هو ميزة (Automated Reporting الأتمتة الإدارية).
+// بدلاً من أن تدخل الإدارة إلى لوحة التحكم يومياً لنسخ إحصائيات الطلاب والمبيعات،
+// يقوم السيرفر عبر هذه الخدمة بتصدير البيانات فوراً وبشكل آلي إلى جداول Google Sheets.
+// هذا يتيح للإدارة مشاركة الإحصائيات مع جهات أخرى (غير تقنية) بصيغة إكسيل مألوفة وسهلة.
 class GoogleSheetsService
 {
     protected $service;
@@ -362,166 +367,294 @@ class GoogleSheetsService
         }
     }
 
-    /**
-     * Update student report in Google Sheet
-     * 
-     * @param int $subjectId
-     * @param string $date
-     * @return bool
-     */
-    public function updateStudentReport(int $subjectId, string $date): bool
+    private static function getArabicDayName(\Carbon\Carbon $date): string
+    {
+        $dayNames = [
+            'Sunday' => 'الأحد',
+            'Monday' => 'الإثنين',
+            'Tuesday' => 'الثلاثاء',
+            'Wednesday' => 'الأربعاء',
+            'Thursday' => 'الخميس',
+            'Friday' => 'الجمعة',
+            'Saturday' => 'السبت',
+        ];
+        return $dayNames[$date->format('l')] ?? '';
+    }
+
+    public function updateStudentReport(int $subjectId, string $date, string $reportType = 'daily'): bool
     {
         try {
             // Test connection first
             if (!$this->testConnection()) {
                 throw new \Exception('لا يمكن الاتصال بـ Google Sheets. تحقق من Spreadsheet ID وصلاحيات Service Account.');
             }
-            // Get students with their attendance, recitation records, and next recitations
-            $students = \App\Models\User::role('student')
-                ->whereHas('subjectsAsStudent', function($query) use ($subjectId) {
-                    $query->where('subject_id', $subjectId);
-                })
-                ->with([
-                    'attendances' => function($query) use ($date) {
-                        $query->whereDate('date', $date);
-                    },
-                    'recitationRecords' => function($query) use ($date) {
-                        $query->whereDate('date', $date);
-                    },
-                    'nextRecitations.surah'
-                ])
-                ->get();
 
-            // Prepare headers if sheet is empty
-            $headers = [
-                'اسم الطالب',
-                'الحضور',
-                'ما سمع',
-                'النتيجة',
-                'ملاحظات',
-                'تاريخ اليوم'
-            ];
+            $subject = \App\Models\Subject::find($subjectId);
+            if (!$subject) {
+                throw new \Exception('الحلقة غير موجودة في قاعدة البيانات.');
+            }
 
-            // Initialize sheet with headers if needed
-            $existingData = $this->getData();
-            if (empty($existingData)) {
-                $this->initializeHeaders($headers);
-            } else {
-                // If headers exist but are different, clear the sheet and add new headers
-                $existingHeaders = $existingData[0] ?? [];
-                if ($existingHeaders != $headers) {
-                    $this->clearSheet(false);
-                    $this->initializeHeaders($headers);
+            // 1. Determine sheet name from date
+            $carbonDate = \Carbon\Carbon::parse($date);
+            $dayName = self::getArabicDayName($carbonDate);
+            $formattedDate = $carbonDate->format('d/m/Y');
+            $sheetName = "{$dayName}: {$formattedDate}";
+
+            // Check if sheet exists
+            try {
+                $spreadsheet = $this->service->spreadsheets->get($this->spreadsheetId);
+                $sheets = $spreadsheet->getSheets();
+                $sheetExists = false;
+                foreach ($sheets as $s) {
+                    if ($s->getProperties()->getTitle() === $sheetName) {
+                        $sheetExists = true;
+                        break;
+                    }
+                }
+                if (!$sheetExists) {
+                    throw new \Exception("لم يتم العثور على ورقة عمل باسم '{$sheetName}' في الملف. يرجى إنشائها أولاً.");
+                }
+            } catch (\Exception $e) {
+                Log::error('Google Sheets metadata error: ' . $e->getMessage());
+                throw new \Exception("فشل الوصول إلى ملف جداول البيانات: " . $e->getMessage());
+            }
+
+            // 2. Map subject to vertical/horizontal coordinates
+            $subjectTitle = $subject->title;
+            $titleClean = mb_strtolower($subjectTitle);
+
+            // Determine vertical range
+            $headerRowNumber = 5;
+            $startRow = 6;
+            $endRow = 25;
+
+            if (str_contains($titleClean, 'يافع') || str_contains($titleClean, 'يافعين')) {
+                $headerRowNumber = 32;
+                $startRow = 33;
+                $endRow = 52;
+            } elseif (str_contains($titleClean, 'فتيان') || str_contains($titleClean, 'فتية')) {
+                $headerRowNumber = 59;
+                $startRow = 60;
+                $endRow = 79;
+            }
+
+            // Determine horizontal starting column
+            $startCol = null;
+            if (str_contains($titleClean, 'الأولى') || str_contains($titleClean, 'الاولى')) {
+                $startCol = 2; // Column B (Index 2 in 1-based)
+            } elseif (str_contains($titleClean, 'الثانية') || str_contains($titleClean, 'الثانيه')) {
+                $startCol = 19; // Column S (Index 19 in 1-based)
+            } elseif (str_contains($titleClean, 'الثالثة') || str_contains($titleClean, 'الثالثه')) {
+                if (str_contains($titleClean, 'ب')) {
+                    $startCol = 53; // Column BA (Index 53 in 1-based)
+                } else {
+                    $startCol = 36; // Column AJ (Index 36 in 1-based)
+                }
+            } elseif (str_contains($titleClean, 'الرابعة') || str_contains($titleClean, 'الرابعه')) {
+                $startCol = 70; // Column BR (Index 70 in 1-based)
+            }
+
+            if ($startCol === null) {
+                throw new \Exception("لا يمكن مطابقة الحلقة '{$subjectTitle}' مع أعمدة الجدول في ملف Google Sheets.");
+            }
+
+            // 3. Read Header Row dynamically
+            $rangeHeaders = $sheetName . "!" . $this->numberToColumnLetter($startCol + 1) . "{$headerRowNumber}:" . $this->numberToColumnLetter($startCol + 17) . "{$headerRowNumber}";
+            $responseHeaders = $this->service->spreadsheets_values->get($this->spreadsheetId, $rangeHeaders);
+            $headers = $responseHeaders->getValues()[0] ?? [];
+
+            $scoreColIndex = null;
+            $pagesColIndex = null;
+            $attendanceColIndex = null;
+            $teacherColIndex = null;
+            $surahsColIndex = null;
+            $nameColIndex = $startCol + 1; // Column C / T / AK / BB / BS
+            $familyColIndex = $startCol + 2; // Column D / U / AL / BC / BT
+            $ageColIndex = $startCol + 3; // Column E / V / AM / BD / BU
+            $regColIndex = $startCol + 4; // Column F / W / AN / BE / BV
+
+            foreach ($headers as $colOffset => $headerText) {
+                $colIdx = $startCol + 1 + $colOffset;
+                if (str_contains($headerText, 'علامة الحفظ')) {
+                    $scoreColIndex = $colIdx;
+                } elseif (str_contains($headerText, 'الحضور')) {
+                    $attendanceColIndex = $colIdx;
+                } elseif (str_contains($headerText, 'الأستاذ')) {
+                    $teacherColIndex = $colIdx;
+                } elseif (str_contains($headerText, 'المحصلات')) {
+                    $surahsColIndex = $colIdx;
+                } elseif (str_contains($headerText, 'عدد الصفحات') && $colIdx < $startCol + 10) {
+                    $pagesColIndex = $colIdx;
                 }
             }
 
-            // Prepare data for Google Sheets
-            $rows = [];
-            
-            foreach ($students as $student) {
-                $attendance = $student->attendances->first();
-                $recitationRecord = $student->recitationRecords->first();
+            if (!$scoreColIndex || !$attendanceColIndex) {
+                throw new \Exception("فشل قراءة العناوين في ورقة العمل. يرجى التأكد من تطابق ترويسة الجدول مع القالب المعتمد.");
+            }
 
-                // Get recitation info
-                $recitationInfo = 'لا يوجد';
-                if ($recitationRecord && $recitationRecord->surahs->isNotEmpty()) {
-                    $recitationInfo = $recitationRecord->surahs->map(function($surah) {
-                        return "{$surah->name} (من آية {$surah->pivot->fromAyeh} إلى {$surah->pivot->toAyeh})";
-                    })->implode('، ');
+            // 4. Read existing names in C and D for rows $startRow to $endRow
+            $rangeNames = $sheetName . "!" . $this->numberToColumnLetter($nameColIndex) . "{$startRow}:" . $this->numberToColumnLetter($familyColIndex) . "{$endRow}";
+            $responseNames = $this->service->spreadsheets_values->get($this->spreadsheetId, $rangeNames);
+            $existingRows = $responseNames->getValues() ?: [];
+
+            Log::info('Debug Sheets Sync:', [
+                'rangeNames' => $rangeNames,
+                'existingRows_count' => count($existingRows),
+                'existingRows' => $existingRows,
+                'startRow' => $startRow,
+                'endRow' => $endRow,
+                'startCol' => $startCol
+            ]);
+
+            // Fetch students from Database
+            $students = \App\Models\User::role('student')
+                ->whereHas('subjectsAsStudent', function($query) use ($subjectId) {
+                    $query->where('subject_id', $subjectId);
+                })->get();
+
+            $updateRequests = [];
+
+            foreach ($students as $student) {
+                // Split full name
+                $parts = explode(' ', trim($student->name));
+                $firstName = $parts[0] ?? '';
+                $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+                $age = $student->birthday ? \Carbon\Carbon::parse($student->birthday)->age : 'غير محدد';
+
+                // Find matched row
+                $matchedRow = null;
+                foreach ($existingRows as $index => $rowVal) {
+                    $rowNum = $index + $startRow;
+                    $sheetNameCell = trim($rowVal[0] ?? '');
+                    $sheetFamilyCell = trim($rowVal[1] ?? '');
+                    $sheetFullName = trim($sheetNameCell . ' ' . $sheetFamilyCell);
+
+                    if (mb_strtolower($sheetFullName) === mb_strtolower(trim($student->name))) {
+                        $matchedRow = $rowNum;
+                        break;
+                    }
                 }
 
-                // Format attendance status
-                $attendanceStatus = 'لم يتم التسجيل';
+                // If not found, find first empty row
+                if (!$matchedRow) {
+                    for ($i = 0; $i < ($endRow - $startRow + 1); $i++) {
+                        $rowNum = $i + $startRow;
+                        $sheetNameCell = trim($existingRows[$i][0] ?? '');
+                        $sheetFamilyCell = trim($existingRows[$i][1] ?? '');
+                        if ($sheetNameCell === '' && $sheetFamilyCell === '') {
+                            $matchedRow = $rowNum;
+                            // Update local copy so next student doesn't take same row
+                            $existingRows[$i][0] = $firstName;
+                            $existingRows[$i][1] = $lastName;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$matchedRow) {
+                    Log::warning("No available rows in Google Sheet for student: {$student->name}");
+                    continue;
+                }
+
+                // Gather stats for student today
+                $attendance = \App\Models\Attendance::where('student_id', $student->id)
+                    ->where('subject_id', $subjectId)
+                    ->whereDate('date', $date)
+                    ->first();
+
+                $attendanceStatus = 'غائب';
                 if ($attendance) {
                     $attendanceStatus = $attendance->status ? 'حاضر' : 'غائب';
                 }
 
-                // Format recitation info
-                $formattedRecitationInfo = 'لا يوجد';
-                if ($recitationRecord && $recitationRecord->surahs->isNotEmpty()) {
-                    $formattedRecitationInfo = $recitationRecord->surahs->map(function($surah) {
-                        return "{$surah->name} (من آية {$surah->pivot->fromAyeh} إلى {$surah->pivot->toAyeh})";
-                    })->implode('، ');
+                $recitationRecord = \App\Models\RecitationRecord::where('student_id', $student->id)
+                    ->where('subject_id', $subjectId)
+                    ->whereDate('date', $date)
+                    ->with('surahs')
+                    ->first();
+
+                $recitationScore = '';
+                $pagesCount = '';
+                $surahNames = '';
+                $teacherName = $subject->teachers->first()->name ?? 'غير محدد';
+
+                if ($recitationRecord) {
+                    $recitationScore = $recitationRecord->score;
+
+                    $totalPages = 0;
+                    $surahsList = [];
+                    foreach ($recitationRecord->surahs as $surah) {
+                        $surahsList[] = $surah->name;
+                        if ($surah->pivot->type === 'page') {
+                            $totalPages += max(0, $surah->pivot->toPage - $surah->pivot->fromPage + 1);
+                        } else {
+                            if ($surah->pivot->fromPage && $surah->pivot->toPage) {
+                                $totalPages += max(0, $surah->pivot->toPage - $surah->pivot->fromPage + 1);
+                            }
+                        }
+                    }
+                    $pagesCount = $totalPages > 0 ? $totalPages : '';
+                    $surahNames = implode('، ', $surahsList);
+
+                    if ($recitationRecord->teacher) {
+                        $teacherName = $recitationRecord->teacher->name;
+                    }
                 }
 
-                // Format score
-                $formattedScore = 'لا يوجد';
-                if ($recitationRecord && $recitationRecord->score) {
-                    $formattedScore = $recitationRecord->score . '/10';
+                // If name is empty in sheet, write profile
+                $nameIsEmpty = empty(trim($existingRows[$matchedRow - $startRow][0] ?? '')) && empty(trim($existingRows[$matchedRow - $startRow][1] ?? ''));
+                if ($nameIsEmpty) {
+                    $updateRequests[] = new \Google\Service\Sheets\ValueRange([
+                        'range' => "{$sheetName}!" . $this->numberToColumnLetter($nameColIndex) . "{$matchedRow}:" . $this->numberToColumnLetter($regColIndex) . "{$matchedRow}",
+                        'values' => [[$firstName, $lastName, $age, 'مسجل']]
+                    ]);
                 }
 
-                // Format notes
-                $formattedNotes = '';
-                if ($recitationRecord && $recitationRecord->notes) {
-                    $formattedNotes = $recitationRecord->notes;
+                // Write Recitation Score and Pages
+                $updateRequests[] = new \Google\Service\Sheets\ValueRange([
+                    'range' => "{$sheetName}!" . $this->numberToColumnLetter($scoreColIndex) . "{$matchedRow}:" . $this->numberToColumnLetter($pagesColIndex) . "{$matchedRow}",
+                    'values' => [[$recitationScore, $pagesCount]]
+                ]);
+
+                // Write Attendance
+                $updateRequests[] = new \Google\Service\Sheets\ValueRange([
+                    'range' => "{$sheetName}!" . $this->numberToColumnLetter($attendanceColIndex) . "{$matchedRow}",
+                    'values' => [[$attendanceStatus]]
+                ]);
+
+                // Write Teacher
+                if ($teacherColIndex) {
+                    $updateRequests[] = new \Google\Service\Sheets\ValueRange([
+                        'range' => "{$sheetName}!" . $this->numberToColumnLetter($teacherColIndex) . "{$matchedRow}",
+                        'values' => [[$teacherName]]
+                    ]);
                 }
 
-                $row = [
-                    $student->name ?? '',
-                    $attendanceStatus,
-                    $formattedRecitationInfo,
-                    $formattedScore,
-                    $formattedNotes,
-                    $date
-                ];
-
-                $rows[] = $row;
+                // Write Surahs (المحصلات)
+                if ($surahsColIndex) {
+                    $updateRequests[] = new \Google\Service\Sheets\ValueRange([
+                        'range' => "{$sheetName}!" . $this->numberToColumnLetter($surahsColIndex) . "{$matchedRow}",
+                        'values' => [[$surahNames]]
+                    ]);
+                }
             }
 
-            // Log data for debugging
-            Log::info('Student report data prepared:', [
-                'subject_id' => $subjectId,
-                'date' => $date,
-                'students_count' => $students->count(),
-                'rows_count' => count($rows),
-                'rows_data' => $rows
-            ]);
-
-            // Add new data without clearing existing data
-            if (!empty($rows)) {
-                Log::info('Attempting to add data to Google Sheets...');
-                
-                // Use append to add data at the end (this preserves existing data)
-                $result = $this->appendData($rows);
-                Log::info('Append result: ' . ($result ? 'success' : 'failed'));
-                
-                // If append fails, try simple update
-                if (!$result) {
-                    Log::info('Append failed, trying simple update...');
-                    $result = $this->simpleUpdateData($rows);
-                    Log::info('Simple update result: ' . ($result ? 'success' : 'failed'));
-                }
-                
-                // If simple update fails, try batch update
-                if (!$result) {
-                    Log::info('Simple update failed, trying batch update...');
-                    $result = $this->batchUpdateData($rows);
-                    Log::info('Batch update result: ' . ($result ? 'success' : 'failed'));
-                }
-            } else {
-                Log::warning('No data to add - rows array is empty');
+            if (!empty($updateRequests)) {
+                $batchRequest = new \Google\Service\Sheets\BatchUpdateValuesRequest([
+                    'valueInputOption' => 'USER_ENTERED',
+                    'data' => $updateRequests
+                ]);
+                $this->service->spreadsheets_values->batchUpdate($this->spreadsheetId, $batchRequest);
+                Log::info('Google Sheets batch update complete for subject: ' . $subjectId);
             }
 
             return true;
         } catch (\Exception $e) {
             Log::error('Failed to update student report in Google Sheets: ' . $e->getMessage());
-            Log::error('Error details: ' . json_encode([
-                'message' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'spreadsheet_id' => $this->spreadsheetId,
-                'sheet_name' => $this->sheetName
-            ]));
-            
-            // Check if it's a 404 error (spreadsheet not found)
-            if (strpos($e->getMessage(), '404') !== false || strpos($e->getMessage(), 'not found') !== false) {
-                throw new \Exception('الجدول غير موجود أو لا يمكن الوصول إليه. تحقق من Spreadsheet ID وصلاحيات Service Account.');
-            }
-            
-            throw $e; // Re-throw to handle in the controller
+            throw $e;
         }
     }
+
 
     /**
      * Clear all data from the sheet (useful for maintenance)

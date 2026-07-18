@@ -14,24 +14,21 @@ class PermissionResource extends Resource
 {
     protected static ?string $model = Permission::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-key';
+    protected static ?string $navigationIcon = 'heroicon-o-lock-closed';
 
-    protected static ?string $navigationLabel = 'الصلاحيات';
-
-    protected static ?string $modelLabel = 'صلاحية';
-
-    protected static ?string $pluralModelLabel = 'الصلاحيات';
-
-    protected static ?string $navigationGroup = 'إدارة النظام';
+    public static function getNavigationLabel(): string { return __('admin.resources.permission.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.permission.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.permission.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.user_management'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات الصلاحية')
+                Forms\Components\Section::make(__('admin.resources.permission.label'))
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('اسم الصلاحية')
+                            ->label(__('admin.fields.name'))
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true),
@@ -61,7 +58,7 @@ class PermissionResource extends Resource
                     ->counts('roles')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

@@ -13,53 +13,52 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+
 use Illuminate\Support\Facades\Auth;
 
 class AnswerResource extends Resource
 {
     protected static ?string $model = Answer::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-check-circle';
+    protected static bool $shouldRegisterNavigation = false;
 
-    protected static ?string $navigationLabel = 'الإجابات';
-
-    protected static ?string $modelLabel = 'إجابة';
-
-    protected static ?string $pluralModelLabel = 'الإجابات';
-
-    protected static ?string $navigationGroup = 'إدارة الاختبارات';
+    protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+    public static function getNavigationLabel(): string { return __('admin.resources.answer.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.answer.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.answer.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.education_management'); }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات الإجابة')
+                Forms\Components\Section::make(__('admin.resources.answer.label'))
                     ->schema([
                         Forms\Components\Select::make('question_id')
-                            ->label('السؤال')
+                            ->label(__('admin.resources.question.label'))
                             ->relationship('question', 'name')
                             ->searchable()
                             ->preload()
                             ->required()
                             ->createOptionForm([
                                 Forms\Components\Select::make('quiz_id')
-                                    ->label('الاختبار')
+                                    ->label(__('admin.resources.quiz.label'))
                                     ->relationship('quiz', 'title')
                                     ->required(),
                                 Forms\Components\TextInput::make('name')
-                                    ->label('نص السؤال')
+                                    ->label(__('admin.fields.name'))
                                     ->required(),
                                 Forms\Components\Toggle::make('active')
-                                    ->label('نشط')
+                                    ->label(__('admin.fields.active'))
                                     ->default(true),
                             ]),
                         Forms\Components\TextInput::make('title')
-                            ->label('نص الإجابة')
+                            ->label(__('admin.fields.content'))
                             ->required()
                             ->maxLength(255)
                             ->columnSpanFull(),
                         Forms\Components\Toggle::make('isCorrect')
-                            ->label('إجابة صحيحة')
+                            ->label(__('admin.fields.is_correct'))
                             ->helperText('حدد هذا الخيار إذا كانت هذه الإجابة صحيحة')
                             ->default(false),
                     ])->columns(2),
@@ -71,26 +70,26 @@ class AnswerResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('title')
-                    ->label('نص الإجابة')
+                    ->label(__('admin.fields.content'))
                     ->searchable()
                     ->limit(50),
                 Tables\Columns\TextColumn::make('question.name')
-                    ->label('السؤال')
+                    ->label(__('admin.resources.question.label'))
                     ->searchable()
                     ->limit(40),
                 Tables\Columns\TextColumn::make('question.quiz.title')
-                    ->label('الاختبار')
+                    ->label(__('admin.resources.quiz.label'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\IconColumn::make('isCorrect')
-                    ->label('إجابة صحيحة')
+                    ->label(__('admin.fields.is_correct'))
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('danger'),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

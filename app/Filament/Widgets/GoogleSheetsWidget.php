@@ -29,7 +29,7 @@ class GoogleSheetsWidget extends BaseWidget
                 ],
                 'active_users' => [
                     'value' => $data['active_users'] ?? 0,
-                    'description' => 'المستخدمين النشطين (آخر 30 يومًا)',
+                    'description' => 'المستخدمون النشطون (آخر 30 يوم)',
                     'icon' => 'heroicon-o-user-group',
                     'color' => 'success',
                 ],
@@ -47,13 +47,13 @@ class GoogleSheetsWidget extends BaseWidget
                 ],
                 'total_attendance' => [
                     'value' => $data['total_attendance'] ?? 0,
-                    'description' => 'سجلات الحضور',
+                    'description' => 'سجلات الحضور والغياب',
                     'icon' => 'heroicon-o-clipboard-list',
                     'color' => 'info',
                 ],
                 'total_recitations' => [
                     'value' => $data['total_recitations'] ?? 0,
-                    'description' => 'تسجيلات التلاوة',
+                    'description' => 'سجلات التسميع',
                     'icon' => 'heroicon-o-musical-note',
                     'color' => 'success',
                 ],
@@ -72,6 +72,6 @@ class GoogleSheetsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return auth()->user()->hasRole(['admin', 'teacher']);
+        return auth()->user()->hasRole('admin');
     }
 }

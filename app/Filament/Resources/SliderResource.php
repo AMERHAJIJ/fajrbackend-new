@@ -17,15 +17,16 @@ class SliderResource extends Resource
 {
     protected static ?string $model = Slider::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-photo';
+    protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-bar';
+    public static function getNavigationLabel(): string { return __('admin.resources.slider.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.slider.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.slider.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.content_management'); }
 
-    protected static ?string $navigationLabel = 'العروض التقديمية';
-
-    protected static ?string $modelLabel = 'عرض تقديمي';
-
-    protected static ?string $pluralModelLabel = 'العروض التقديمية';
-
-    protected static ?string $navigationGroup = 'إدارة المحتوى';
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('admin') ?? false;
+    }
 
     protected static ?int $navigationSort = 1;
 
@@ -33,15 +34,13 @@ class SliderResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات العرض التقديمي')
+                Forms\Components\Section::make(__('admin.resources.slider.label'))
                     ->schema([
                         Forms\Components\TextInput::make('title')
-                            ->label('عنوان العرض')
-                            ->maxLength(255)
-                            ->placeholder('مثال: دورة تحفيظ جديدة - سجل الآن')
-                            ->helperText('العنوان اختياري - يظهر على الصورة'),
+                            ->label(__('admin.fields.title'))
+                            ->maxLength(255),
                         Forms\Components\FileUpload::make('image')
-                            ->label('صورة العرض')
+                            ->label(__('admin.fields.image'))
                             ->image()
                             ->imageEditor()
                             ->imageResizeMode('cover')
@@ -49,19 +48,15 @@ class SliderResource extends Resource
                             ->imageResizeTargetWidth('1920')
                             ->imageResizeTargetHeight('1080')
                             ->directory('sliders')
-                            ->required()
-                            ->helperText('الأبعاد الموصى بها: 1920x1080 بكسل'),
+                            ->required(),
                         Forms\Components\TextInput::make('link')
-                            ->label('رابط العرض')
+                            ->label(__('admin.fields.link'))
                             ->required()
                             ->url()
-                            ->maxLength(255)
-                            ->placeholder('https://example.com')
-                            ->helperText('الرابط الذي يتم الانتقال إليه عند الضغط'),
+                            ->maxLength(255),
                         Forms\Components\Toggle::make('active')
-                            ->label('نشط')
-                            ->default(true)
-                            ->helperText('العروض غير النشطة لن تظهر في الصفحة الرئيسية'),
+                            ->label(__('admin.fields.active'))
+                            ->default(true),
                     ])->columns(2),
             ]);
     }
@@ -71,24 +66,24 @@ class SliderResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->label('الصورة')
+                    ->label('Resim')
                     ->height(80)
                     ->width(120),
                 Tables\Columns\TextColumn::make('title')
-                    ->label('العنوان')
+                    ->label('Adres')
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
                     ->placeholder('بدون عنوان'),
                 Tables\Columns\TextColumn::make('link')
-                    ->label('الرابط')
+                    ->label('Bağlantı')
                     ->searchable()
                     ->limit(50)
                     ->tooltip(function ($record) {
                         return $record->link;
                     }),
                 Tables\Columns\IconColumn::make('active')
-                    ->label('الحالة')
+                    ->label('Durum')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
@@ -96,14 +91,14 @@ class SliderResource extends Resource
                     ->falseColor('danger')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('Y-m-d H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('active')
-                    ->label('الحالة')
+                    ->label('Durum')
                     ->boolean()
                     ->trueLabel('نشط فقط')
                     ->falseLabel('غير نشط فقط')
@@ -116,14 +111,14 @@ class SliderResource extends Resource
                     ->url(fn ($record) => $record->link)
                     ->openUrlInNewTab(),
                 Tables\Actions\EditAction::make()
-                    ->label('تعديل'),
+                    ->label('Düzenle'),
                 Tables\Actions\DeleteAction::make()
-                    ->label('حذف'),
+                    ->label('Sil'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->label('حذف المحدد'),
+                        ->label('Seçilenleri Sil'),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')

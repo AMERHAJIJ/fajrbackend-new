@@ -14,11 +14,11 @@ class HomeworksRelationManager extends RelationManager
 {
     protected static string $relationship = 'homeworks';
 
-    protected static ?string $title = 'الواجبات';
+    protected static ?string $title = 'Ödevler';
 
-    protected static ?string $modelLabel = 'واجب';
+    protected static ?string $modelLabel = 'Ödev';
 
-    protected static ?string $pluralModelLabel = 'الواجبات';
+    protected static ?string $pluralModelLabel = 'Ödevler';
 
     public function form(Form $form): Form
     {
@@ -33,7 +33,7 @@ class HomeworksRelationManager extends RelationManager
                     ->rows(3)
                     ->nullable(),
                 Forms\Components\TextInput::make('lesson_name')
-                    ->label('اسم الدرس')
+                    ->label('Ders Adı')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('page_number')
@@ -48,11 +48,11 @@ class HomeworksRelationManager extends RelationManager
                     ->preload()
                     ->default(auth()->id()),
                 Forms\Components\DatePicker::make('due_date')
-                    ->label('تاريخ التسليم')
+                    ->label('Teslim Tarihi')
                     ->required()
                     ->native(false),
                 Forms\Components\TextInput::make('max_score')
-                    ->label('الدرجة القصوى')
+                    ->label('Maksimum Puan')
                     ->numeric()
                     ->default(100)
                     ->required()
@@ -73,7 +73,7 @@ class HomeworksRelationManager extends RelationManager
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('lesson_name')
-                    ->label('اسم الدرس')
+                    ->label('Ders Adı')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('page_number')
@@ -81,16 +81,16 @@ class HomeworksRelationManager extends RelationManager
                     ->searchable()
                     ->placeholder('غير محدد'),
                 Tables\Columns\TextColumn::make('teacher.name')
-                    ->label('المعلم')
+                    ->label('Öğretmen')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('due_date')
-                    ->label('تاريخ التسليم')
+                    ->label('Teslim Tarihi')
                     ->date('d/m/Y')
                     ->sortable()
                     ->color(fn ($record) => $record->due_date < now() ? 'danger' : 'success'),
                 Tables\Columns\TextColumn::make('max_score')
-                    ->label('الدرجة القصوى')
+                    ->label('Maksimum Puan')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('active')
                     ->label('نشط')
@@ -104,7 +104,7 @@ class HomeworksRelationManager extends RelationManager
                     ->trueLabel('نشط فقط')
                     ->falseLabel('غير نشط فقط'),
                 Tables\Filters\SelectFilter::make('teacher_id')
-                    ->label('المعلم')
+                    ->label('Öğretmen')
                     ->relationship('teacher', 'name')
                     ->searchable()
                     ->preload(),

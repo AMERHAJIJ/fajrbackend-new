@@ -20,49 +20,51 @@ class VideoResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-video-camera';
 
-    protected static ?string $navigationLabel = 'الفيديوهات';
+    public static function getNavigationLabel(): string { return __('admin.resources.video.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.video.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.video.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.content_management'); }
 
-    protected static ?string $modelLabel = 'فيديو';
-
-    protected static ?string $pluralModelLabel = 'الفيديوهات';
-
-    protected static ?string $navigationGroup = 'إدارة المحتوى';
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('admin') ?? false;
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات الفيديو')
+                Forms\Components\Section::make(__('admin.resources.video.label'))
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('اسم الفيديو')
+                            ->label(__('admin.fields.title'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('link')
-                            ->label('رابط الفيديو')
+                            ->label(__('admin.fields.link'))
                             ->url()
                             ->required()
                             ->maxLength(255),
                         Forms\Components\FileUpload::make('image')
-                            ->label('صورة الفيديو')
+                            ->label(__('admin.fields.image'))
                             ->image()
                             ->imageEditor()
                             ->directory('videos')
                             ->nullable(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('التصنيف')
+                Forms\Components\Section::make(__('admin.resources.category.label'))
                     ->schema([
                         Forms\Components\Select::make('object_type')
-                            ->label('نوع التصنيف')
+                            ->label(__('admin.fields.type'))
                             ->options([
-                                'App\\Models\\Category' => 'فئة',
-                                'App\\Models\\Subject' => 'مادة دراسية',
+                                'App\\Models\\Category' => __('admin.resources.category.label'),
+                                'App\\Models\\Subject' => __('admin.resources.subject.label'),
                             ])
                             ->required()
                             ->reactive(),
                         Forms\Components\Select::make('object_id')
-                            ->label('التصنيف')
+                            ->label(__('admin.resources.category.label'))
                             ->options(function (callable $get) {
                                 $type = $get('object_type');
                                 if ($type === 'App\\Models\\Category') {
@@ -76,13 +78,13 @@ class VideoResource extends Resource
                             ->reactive(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('الإعدادات')
+                Forms\Components\Section::make('Ayarlar')
                     ->schema([
                         Forms\Components\Toggle::make('isRequired')
                             ->label('مطلوب')
                             ->default(false),
                         Forms\Components\Toggle::make('showInHomePage')
-                            ->label('عرض في الصفحة الرئيسية')
+                            ->label('Ana Sayfada Göster')
                             ->default(false),
                         Forms\Components\Toggle::make('active')
                             ->label('نشط')
@@ -101,33 +103,33 @@ class VideoResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->label('الصورة')
+                    ->label('Resim')
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('اسم الفيديو')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('object_type')
-                    ->label('نوع التصنيف')
-                    ->formatStateUsing(fn ($state) => $state === 'App\\Models\\Category' ? 'فئة' : 'مادة دراسية'),
+                    ->label('Sınıflandırma Türü')
+                    ->formatStateUsing(fn ($state) => $state === 'App\\Models\\Category' ? 'Kategori' : 'Ders'),
                 Tables\Columns\TextColumn::make('object.name')
-                    ->label('التصنيف')
+                    ->label('Sınıflandırma')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('visits')
-                    ->label('المشاهدات')
+                    ->label('Görüntülenme')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('isRequired')
                     ->label('مطلوب')
                     ->boolean(),
                 Tables\Columns\IconColumn::make('showInHomePage')
-                    ->label('الصفحة الرئيسية')
+                    ->label('Ana Sayfa')
                     ->boolean(),
                 Tables\Columns\IconColumn::make('active')
                     ->label('نشط')
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -144,15 +146,15 @@ class VideoResource extends Resource
                     ->trueLabel('مطلوب فقط')
                     ->falseLabel('غير مطلوب فقط'),
                 Tables\Filters\TernaryFilter::make('showInHomePage')
-                    ->label('الصفحة الرئيسية')
+                    ->label('Ana Sayfa')
                     ->boolean()
                     ->trueLabel('يظهر في الرئيسية')
                     ->falseLabel('لا يظهر في الرئيسية'),
                 Tables\Filters\SelectFilter::make('object_type')
-                    ->label('نوع التصنيف')
+                    ->label('Sınıflandırma Türü')
                     ->options([
-                        'App\\Models\\Category' => 'فئة',
-                        'App\\Models\\Subject' => 'مادة دراسية',
+                        'App\\Models\\Category' => 'Kategori',
+                        'App\\Models\\Subject' => 'Ders',
                     ]),
             ])
             ->actions([

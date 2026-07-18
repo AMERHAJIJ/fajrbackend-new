@@ -30,15 +30,11 @@ class ExportToWhatsAppAction
                 Forms\Components\Select::make('students')
                     ->label('اختر الطلاب')
                     ->options(function () use ($user) {
-                        $query = User::role('student');
-
-                        if ($user->hasRole('teacher')) {
-                            $query->whereHas('subjectsAsStudent', function ($q) use ($user) {
-                                $q->whereHas('teachers', function ($q) use ($user) {
-                                    $q->where('users.id', $user->id);
-                                });
+                        $query = User::role('student')
+                            ->whereHas('recitationRecords', function ($q) use ($user) {
+                                $q->where('teacher_id', $user->id)
+                                  ->whereDate('date', now());
                             });
-                        }
 
                         return $query->pluck('name', 'id');
                     })
@@ -50,7 +46,7 @@ class ExportToWhatsAppAction
                     ->label('ملاحظات إضافية')
                     ->columnSpanFull(),
             ])
-            ->action(function (array $data) {
+            ->action(function (array $data, $livewire) {
                 $students = User::with([
                     'recitationRecords' => function ($query) {
                         $query->with(['surahs'])
@@ -67,12 +63,12 @@ class ExportToWhatsAppAction
                 $nextWeek = now()->addWeek();
 
                 $message = "*السلام عليكم ورحمة الله وبركاته*\n\n";
-                $message .= "الأهالي الكرام 🌸🌸\n";
-                $message .= "حياكم الله وعسى أن تكونوا بخير 🌷\n\n";
+                $message .= "الأهالي الكرام 🌹\n";
+                $message .= "حياكم الله وعسى أن تكونوا بخير 🌸\n\n";
                 $message .= "سيتم إرسال تسميع الطلاب ليوم *" . self::getArabicDayName($today) . "*\n";
                 $message .= "_التاريخ:_ " . $today->day . '/' . $today->month . "\n\n";
-                $message .= "نشكر لكم حسن المتابعة 🌿\n";
-                $message .= "دمتم في رعاية الله 🤲🏻🌸\n\n";
+                $message .= "نشكر لكم حسن المتابعة 🌸\n";
+                $message .= "دمتم في رعاية الله 🤲✨\n\n";
 
                 foreach ($students as $student) {
                     $message .= "----------------------------------------------------------\n";
@@ -114,43 +110,39 @@ class ExportToWhatsAppAction
                         $message .= "واجب الدرس القادم: سيتم تحديده لاحقاً\n";
                     }
 
-                    // ✅ إضافة حالة الحضور بالرموز
-                    $attendanceStatus = $student->recitationRecords->isNotEmpty()
-                        ? (($student->recitationRecords->first()->is_present ?? true) ? '✅ حاضر' : '❌ غائب')
-                        : '❌ غائب';
+                    // ✅ إضافة حالة الحضور بالرموز من جدول الحضور
+                    $todayAttendance = \App\Models\Attendance::where('student_id', $student->id)
+                        ->whereDate('date', $today)
+                        ->first();
+                    
+                    if ($todayAttendance) {
+                        $attendanceStatus = $todayAttendance->status ? '🟢 حاضر' : '🔴 غائب';
+                    } else {
+                        $attendanceStatus = $student->recitationRecords->isNotEmpty() ? '🟢 حاضر' : '🔴 غائب';
+                    }
 
                     $message .= "حالة الحضور: {$attendanceStatus}\n\n";
                 }
 
                 $message .= "----------------------------------------------------------\n";
-                $message .= "نشكر لكم حسن المتابعة والحرص على الأبناء، ونسأل الله أن يجعلهم من حفظة كتابه الكريم 🤲🏻\n\n";
+                $message .= "نشكر لكم حسن المتابعة والحرص على الأبناء، ونسأل الله أن يجعلهم من حفظة كتابه الكريم ❤️\n\n";
 
                 if (!empty($data['notes'])) {
                     $message .= "*ملاحظات إضافية:*\n{$data['notes']}\n\n";
                 }
 
-                // تحديث سجل المعلم في التتبع
+                // تحديث سجل المعلم في التتبع تلقائياً باستخدام الخيار الذكي
                 $teacherId = Auth::id();
-                $date = now()->toDateString();
+                $quranSubject = \App\Models\Subject::where('is_quran', true)->first();
+                $subjectId = $quranSubject ? $quranSubject->id : null;
 
-                if ($teacherId && $students->isNotEmpty()) {
-                    $firstStudent = $students->first();
-                    if ($firstStudent && $firstStudent->subjectsAsStudent->isNotEmpty()) {
-                        $teacherSubjects = $firstStudent->subjectsAsStudent->filter(function ($subject) use ($teacherId) {
-                            return $subject->teachers->contains('id', $teacherId);
-                        });
-
-                        if ($teacherSubjects->isNotEmpty()) {
-                            $subjectId = $teacherSubjects->first()->id;
-                            TeacherTaskAutoTracker::updateWhatsAppTask($teacherId, $subjectId, $date);
-                        }
-                    }
+                if ($teacherId && $subjectId) {
+                    \App\Services\TaskTrackingService::track($teacherId, $subjectId, 'whatsapp_sent');
                 }
 
-                // تنسيق الرسالة لواتساب
-                $message = str_replace("\n", "%0A", $message);
-                $whatsappUrl = "https://wa.me/?text={$message}";
-                return redirect($whatsappUrl);
+                // ترميز الرسالة بشكل آمن للروابط لضمان ظهور الإيموجيات
+                $whatsappUrl = "https://wa.me/?text=" . rawurlencode($message);
+                $livewire->js("window.open('{$whatsappUrl}', '_blank')");
             });
     }
 

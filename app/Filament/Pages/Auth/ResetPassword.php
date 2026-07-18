@@ -26,7 +26,7 @@ class ResetPassword extends BaseResetPassword
     protected function getEmailFormComponent(): Component
     {
         return TextInput::make('email')
-            ->label('البريد الإلكتروني')
+            ->label('E-posta')
             ->email()
             ->required()
             ->autocomplete()

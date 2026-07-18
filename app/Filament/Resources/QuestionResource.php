@@ -18,15 +18,14 @@ class QuestionResource extends Resource
 {
     protected static ?string $model = Question::class;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $navigationIcon = 'heroicon-o-question-mark-circle';
 
-    protected static ?string $navigationLabel = 'الأسئلة';
-
-    protected static ?string $modelLabel = 'سؤال';
-
-    protected static ?string $pluralModelLabel = 'الأسئلة';
-
-    protected static ?string $navigationGroup = 'إدارة الاختبارات';
+    public static function getNavigationLabel(): string { return __('admin.resources.question.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.question.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.question.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.education_management'); }
 
     public static function form(Form $form): Form
     {
@@ -42,21 +41,25 @@ class QuestionResource extends Resource
                             ->required()
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('title')
-                                    ->label('عنوان الاختبار')
+                                    ->label(__('admin.fields.title'))
                                     ->required(),
                                 Forms\Components\Select::make('video_id')
-                                    ->label('الفيديو')
+                                    ->label(__('admin.resources.video.label'))
                                     ->relationship('video', 'name')
                                     ->searchable()
                                     ->required(),
                             ]),
-                        Forms\Components\TextInput::make('name')
-                            ->label('نص السؤال')
+                        Forms\Components\Textarea::make('content')
+                            ->label(__('admin.fields.content'))
                             ->required()
-                            ->maxLength(500)
                             ->columnSpanFull(),
+                        Forms\Components\TextInput::make('score')
+                            ->label(__('admin.fields.score'))
+                            ->numeric()
+                            ->default(1)
+                            ->required(),
                         Forms\Components\Toggle::make('active')
-                            ->label('نشط')
+                            ->label(__('admin.fields.active'))
                             ->default(true),
                     ])->columns(2),
             ]);
@@ -66,27 +69,30 @@ class QuestionResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('نص السؤال')
-                    ->searchable()
-                    ->limit(50),
                 Tables\Columns\TextColumn::make('quiz.title')
-                    ->label('الاختبار')
+                    ->label(__('admin.resources.quiz.label'))
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('content')
+                    ->label(__('admin.fields.content'))
+                    ->searchable()
+                    ->limit(50),
+                Tables\Columns\TextColumn::make('score')
+                    ->label(__('admin.fields.score'))
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('quiz.video.name')
-                    ->label('الفيديو')
+                    ->label(__('admin.resources.video.label'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\IconColumn::make('active')
-                    ->label('نشط')
+                    ->label(__('admin.fields.active'))
                     ->boolean(),
                 Tables\Columns\TextColumn::make('answers_count')
-                    ->label('عدد الإجابات')
+                    ->label(__('admin.resources.answer.plural_label'))
                     ->counts('answers')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -97,7 +103,7 @@ class QuestionResource extends Resource
                     ->relationship('quiz', 'title')
                     ->searchable(),
                 Tables\Filters\TernaryFilter::make('active')
-                    ->label('الحالة')
+                    ->label('Durum')
                     ->placeholder('الكل')
                     ->trueLabel('نشط')
                     ->falseLabel('غير نشط'),

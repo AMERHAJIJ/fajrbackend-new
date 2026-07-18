@@ -93,7 +93,23 @@ Route::prefix('test/sheets')
     });
 });
 
-// Default route
-Route::get('/', function () {
-    return view('welcome');
+// Public site routes
+Route::name('site.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\SiteController::class, 'home'])->name('home');
+    Route::get('/about', [\App\Http\Controllers\SiteController::class, 'about'])->name('about');
+    Route::get('/programs', [\App\Http\Controllers\SiteController::class, 'programs'])->name('programs');
+    Route::get('/entrepreneurship', [\App\Http\Controllers\SiteController::class, 'entrepreneurship'])->name('entrepreneurship');
+    Route::get('/team', [\App\Http\Controllers\SiteController::class, 'team'])->name('team');
+    Route::get('/gallery', [\App\Http\Controllers\SiteController::class, 'gallery'])->name('gallery');
+    Route::get('/contact', [\App\Http\Controllers\SiteController::class, 'contact'])->name('contact');
+    Route::post('/contact', [\App\Http\Controllers\SiteController::class, 'sendContact'])->name('contact.send');
 });
+
+// Google Meet OAuth Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/google/oauth/redirect', [\App\Http\Controllers\GoogleOAuthController::class, 'redirect'])
+        ->name('google.oauth.redirect');
+    Route::get('/google/oauth/callback', [\App\Http\Controllers\GoogleOAuthController::class, 'callback'])
+        ->name('google.oauth.callback');
+});
+

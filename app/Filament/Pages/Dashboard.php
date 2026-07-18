@@ -64,7 +64,7 @@ class DashboardStatsWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-user-group')
                 ->color('info'),
             
-            BaseWidget\Stat::make('المواد الدراسية', $totalSubjects)
+            BaseWidget\Stat::make('Dersler', $totalSubjects)
                 ->description('المواد النشطة')
                 ->descriptionIcon('heroicon-m-book-open')
                 ->color('warning'),
@@ -74,12 +74,12 @@ class DashboardStatsWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-calendar-days')
                 ->color($attendanceRate >= 80 ? 'success' : ($attendanceRate >= 60 ? 'warning' : 'danger')),
             
-            BaseWidget\Stat::make('الاختبارات', $totalQuizzes)
+            BaseWidget\Stat::make('Sınavlar', $totalQuizzes)
                 ->description('الاختبارات النشطة')
                 ->descriptionIcon('heroicon-m-clipboard-document-list')
                 ->color('primary'),
             
-            BaseWidget\Stat::make('الفيديوهات', $totalVideos)
+            BaseWidget\Stat::make('Videolar', $totalVideos)
                 ->description('الفيديوهات التعليمية')
                 ->descriptionIcon('heroicon-m-video-camera')
                 ->color('secondary'),

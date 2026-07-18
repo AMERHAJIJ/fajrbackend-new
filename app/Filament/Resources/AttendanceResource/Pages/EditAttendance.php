@@ -14,9 +14,9 @@ class EditAttendance extends EditRecord
     {
         return [
             Actions\ViewAction::make()
-                ->label('عرض'),
+                ->label('Görüntüle'),
             Actions\DeleteAction::make()
-                ->label('حذف'),
+                ->label('Sil'),
         ];
     }
 

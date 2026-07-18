@@ -25,7 +25,7 @@ class SubjectTeachersRelationManager extends RelationManager
         return $form
             ->schema([
                 Forms\Components\Select::make('teacher_id')
-                    ->label('المعلم')
+                    ->label('Öğretmen')
                     ->relationship('teacher', 'name')
                     ->required()
                     ->searchable()
@@ -49,7 +49,7 @@ class SubjectTeachersRelationManager extends RelationManager
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('teacher.email')
-                    ->label('البريد الإلكتروني')
+                    ->label('E-posta')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('assigned_at')
                     ->label('تاريخ التكليف')
@@ -60,7 +60,7 @@ class SubjectTeachersRelationManager extends RelationManager
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

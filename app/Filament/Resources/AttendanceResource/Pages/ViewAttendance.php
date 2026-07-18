@@ -14,7 +14,7 @@ class ViewAttendance extends ViewRecord
     {
         return [
             Actions\EditAction::make()
-                ->label('تعديل'),
+                ->label('Düzenle'),
         ];
     }
 }

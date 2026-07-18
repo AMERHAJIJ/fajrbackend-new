@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SurahSeeder::class,
             StudentSeeder::class,
+            SiteContentSeeder::class,
         ]);
     }
 }

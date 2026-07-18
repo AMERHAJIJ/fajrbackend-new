@@ -14,7 +14,7 @@ class ViewRecitationRecord extends ViewRecord
     {
         return [
             Actions\EditAction::make()
-                ->label('تعديل'),
+                ->label('Düzenle'),
         ];
     }
 }

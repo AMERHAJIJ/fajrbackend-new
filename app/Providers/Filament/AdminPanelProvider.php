@@ -35,17 +35,20 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset(RequestPasswordReset::class)
             ->passwordReset(ResetPassword::class)
             ->colors([
-                'primary' => Color::Amber,
+                // هوية ألوان الفجر
+                'primary' => Color::hex('#00667E'), // Teal الغامق - اللون الأساسي للأزرار والعناوين
+                'info' => Color::hex('#72CBD1'),    // Teal الفاتح - للاستخدامات المعلوماتية / الثانوية
+                'warning' => Color::hex('#C5A059'), // الذهبي - للتنبيهات أو العناصر المميزة
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 Pages\Dashboard::class,
             ])
+            ->brandName('Al-Fajr')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -57,6 +60,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                \BezhanSalleh\FilamentLanguageSwitch\Http\Middleware\SwitchLanguageLocale::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

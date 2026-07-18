@@ -11,6 +11,17 @@ class Homework extends Model
     
     protected $guarded = [];
 
+    protected static function booted()
+    {
+        static::created(function ($homework) {
+            \App\Services\TaskTrackingService::track(
+                $homework->teacher_id ?? auth()->id(),
+                $homework->subject_id,
+                'homework_sent'
+            );
+        });
+    }
+
     protected $casts = [
         'due_date' => 'date',
         'active' => 'boolean',

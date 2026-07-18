@@ -17,62 +17,44 @@ class BlogResource extends Resource
 {
     protected static ?string $model = Blog::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static ?string $navigationIcon = 'heroicon-o-newspaper';
 
-    protected static ?string $navigationLabel = 'المقالات';
+    public static function getNavigationLabel(): string { return __('admin.resources.blog.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.blog.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.blog.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.content_management'); }
 
-    protected static ?string $modelLabel = 'مقال';
-
-    protected static ?string $pluralModelLabel = 'المقالات';
-
-    protected static ?string $navigationGroup = 'إدارة المحتوى';
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('admin') ?? false;
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('معلومات المقال')
+                Forms\Components\Section::make(__('admin.resources.blog.label'))
                     ->schema([
                         Forms\Components\TextInput::make('title')
-                            ->label('عنوان المقال')
+                            ->label(__('admin.fields.title'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\Select::make('category_id')
-                            ->label('الفئة')
+                            ->label(__('admin.resources.category.label'))
                             ->relationship('category', 'name')
-                            ->searchable()
-                            ->preload()
                             ->required(),
-                        Forms\Components\FileUpload::make('image')
-                            ->label('صورة المقال')
-                            ->image()
-                            ->imageEditor()
-                            ->directory('blogs')
-                            ->nullable(),
-                    ])->columns(2),
-
-                Forms\Components\Section::make('محتوى المقال')
-                    ->schema([
                         Forms\Components\RichEditor::make('content')
-                            ->label('المحتوى')
+                            ->label(__('admin.fields.content'))
                             ->required()
                             ->columnSpanFull(),
-                    ]),
-
-                Forms\Components\Section::make('الإعدادات')
-                    ->schema([
-                        Forms\Components\Toggle::make('showInHomePage')
-                            ->label('عرض في الصفحة الرئيسية')
-                            ->default(false),
+                        Forms\Components\FileUpload::make('image')
+                            ->label(__('admin.fields.image'))
+                            ->image()
+                            ->directory('blog'),
                         Forms\Components\Toggle::make('active')
-                            ->label('نشط')
+                            ->label(__('admin.fields.active'))
                             ->default(true),
-                        Forms\Components\TextInput::make('visits')
-                            ->label('عدد المشاهدات')
-                            ->numeric()
-                            ->default(0)
-                            ->disabled(),
-                    ])->columns(3),
+                    ])->columns(2),
             ]);
     }
 
@@ -81,51 +63,32 @@ class BlogResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->label('الصورة')
-                    ->circular(),
-                Tables\Columns\TextColumn::make('title')
-                    ->label('عنوان المقال')
-                    ->searchable()
-                    ->sortable()
-                    ->limit(50),
-                Tables\Columns\TextColumn::make('category.name')
-                    ->label('الفئة')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('content')
-                    ->label('المحتوى')
-                    ->html()
-                    ->limit(100)
-                    ->searchable(),
+                    ->label(__('admin.fields.image')),
                 Tables\Columns\TextColumn::make('visits')
-                    ->label('المشاهدات')
+                    ->label(__('admin.fields.views'))
                     ->sortable(),
                 Tables\Columns\IconColumn::make('showInHomePage')
-                    ->label('الصفحة الرئيسية')
+                    ->label(__('admin.fields.home_page'))
                     ->boolean(),
                 Tables\Columns\IconColumn::make('active')
-                    ->label('نشط')
+                    ->label(__('admin.fields.active'))
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label(__('admin.fields.created_at'))
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('active')
-                    ->label('نشط')
-                    ->boolean()
-                    ->trueLabel('نشط فقط')
-                    ->falseLabel('غير نشط فقط'),
+                    ->label(__('admin.fields.active'))
+                    ->boolean(),
                 Tables\Filters\TernaryFilter::make('showInHomePage')
-                    ->label('الصفحة الرئيسية')
-                    ->boolean()
-                    ->trueLabel('يظهر في الرئيسية')
-                    ->falseLabel('لا يظهر في الرئيسية'),
+                    ->label(__('admin.fields.home_page'))
+                    ->boolean(),
                 Tables\Filters\SelectFilter::make('category_id')
-                    ->label('الفئة')
+                    ->label(__('admin.resources.category.label'))
                     ->relationship('category', 'name')
                     ->searchable()
                     ->preload(),
@@ -162,7 +125,7 @@ class BlogResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return true; // جميع المستخدمين يمكنهم رؤية المقالات
+        return auth()->user()->can('view blogs');
     }
 
     public static function canCreate(): bool

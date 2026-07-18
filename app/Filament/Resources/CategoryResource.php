@@ -17,15 +17,18 @@ class CategoryResource extends Resource
 {
     protected static ?string $model = Category::class;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $navigationIcon = 'heroicon-o-tag';
+    public static function getNavigationLabel(): string { return __('admin.resources.category.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.category.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.category.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.content_management'); }
 
-    protected static ?string $navigationLabel = 'التصنيفات';
-
-    protected static ?string $modelLabel = 'تصنيف';
-
-    protected static ?string $pluralModelLabel = 'التصنيفات';
-
-    protected static ?string $navigationGroup = 'إدارة المحتوى';
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('admin') ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -38,17 +41,17 @@ class CategoryResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255)
-                            ->placeholder('مثال: التفسير، الفقه، السيرة'),
+                            ->placeholder(__('admin.placeholders.category_name')),
                         Forms\Components\TextInput::make('icon')
-                            ->label('الأيقونة')
+                            ->label(__('admin.fields.icon'))
                             ->maxLength(255)
                             ->placeholder('heroicon-o-book-open')
-                            ->helperText('اسم الأيقونة من مكتبة Heroicons')
+                            ->helperText(__('admin.helpers.icon_name'))
                             ->suffixIcon('heroicon-o-information-circle'),
                         Forms\Components\Toggle::make('active')
-                            ->label('نشط')
+                            ->label(__('admin.fields.active'))
                             ->default(true)
-                            ->helperText('التصنيفات غير النشطة لن تظهر في القوائم'),
+                            ->helperText(__('admin.helpers.active_status')),
                     ])->columns(2),
             ]);
     }
@@ -58,17 +61,17 @@ class CategoryResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('اسم التصنيف')
+                    ->label(__('admin.fields.name'))
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
                 Tables\Columns\TextColumn::make('icon')
-                    ->label('الأيقونة')
+                    ->label(__('admin.fields.icon'))
                     ->badge()
                     ->color('gray')
-                    ->formatStateUsing(fn ($state) => $state ?? 'لا توجد أيقونة'),
+                    ->formatStateUsing(fn ($state) => $state ?? __('admin.messages.no_icon')),
                 Tables\Columns\IconColumn::make('active')
-                    ->label('الحالة')
+                    ->label(__('admin.fields.active'))
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
@@ -81,14 +84,14 @@ class CategoryResource extends Resource
                     ->color('primary')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('Y-m-d H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('active')
-                    ->label('الحالة')
+                    ->label('Durum')
                     ->boolean()
                     ->trueLabel('نشط فقط')
                     ->falseLabel('غير نشط فقط')
@@ -96,9 +99,9 @@ class CategoryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->label('تعديل'),
+                    ->label('Düzenle'),
                 Tables\Actions\DeleteAction::make()
-                    ->label('حذف')
+                    ->label('Sil')
                     ->before(function ($record) {
                         if ($record->blogs()->count() > 0) {
                             throw new \Exception('لا يمكن حذف التصنيف لأنه يحتوي على مقالات');
@@ -108,7 +111,7 @@ class CategoryResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->label('حذف المحدد')
+                        ->label('Seçilenleri Sil')
                         ->before(function ($records) {
                             foreach ($records as $record) {
                                 if ($record->blogs()->count() > 0) {

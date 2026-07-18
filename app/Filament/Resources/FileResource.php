@@ -17,15 +17,17 @@ class FileResource extends Resource
 {
     protected static ?string $model = File::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-arrow-down';
+    protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';
 
-    protected static ?string $navigationLabel = 'الملفات';
+    public static function getNavigationLabel(): string { return __('admin.resources.file.plural_label'); }
+    public static function getModelLabel(): string { return __('admin.resources.file.label'); }
+    public static function getPluralModelLabel(): string { return __('admin.resources.file.plural_label'); }
+    public static function getNavigationGroup(): ?string { return __('admin.navigation_group.content_management'); }
 
-    protected static ?string $modelLabel = 'ملف';
-
-    protected static ?string $pluralModelLabel = 'الملفات';
-
-    protected static ?string $navigationGroup = 'إدارة المحتوى';
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('admin') ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -47,51 +49,70 @@ class FileResource extends Resource
                             ->directory('file-images')
                             ->nullable(),
                         Forms\Components\FileUpload::make('link')
-                            ->label('الملف')
+                            ->label('Dosya')
                             ->directory('files')
                             ->required()
-                            ->acceptedFileTypes(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip', 'rar']),
+                            ->disk('public') // التأكد من استخدام القرص العام
+                            ->maxSize(102400) // رفع الحد الأقصى إلى 100 ميجابايت
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                'application/vnd.ms-powerpoint',
+                                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                                'text/plain',
+                                'application/zip',
+                                'application/x-rar-compressed',
+                                'application/octet-stream', // يدعم الملفات المضغوطة أحياناً
+                            ]),
                     ])->columns(2),
 
-                Forms\Components\Section::make('التصنيف')
+                Forms\Components\Section::make('الخصوصية والتصنيف')
                     ->schema([
+                        Forms\Components\Toggle::make('is_public')
+                            ->label('ملف عام (للمكتبة العامة)')
+                            ->helperText('إذا تم تفعيله، سيظهر الملف لجميع زوار التطبيق')
+                            ->default(true)
+                            ->live(),
                         Forms\Components\Select::make('object_type')
-                            ->label('نوع التصنيف')
+                            ->label('مرتبط بـ')
                             ->options([
-                                'App\\Models\\Category' => 'فئة',
-                                'App\\Models\\Video' => 'فيديو',
+                                'App\\Models\\Category' => 'تصنيف عام',
+                                'App\\Models\\Subject' => 'مادة دراسية (للمسجلين فقط)',
+                                'App\\Models\\Video' => 'فيديو معين',
                             ])
-                            ->required()
+                            ->required(fn (Forms\Get $get) => !$get('is_public')) // إجباري فقط إذا لم يكن عاماً
+                            ->hidden(fn (Forms\Get $get) => $get('is_public')) // نخفيه إذا كان عاماً لتبسيط الواجهة
                             ->reactive(),
                         Forms\Components\Select::make('object_id')
-                            ->label('التصنيف')
+                            ->label('اختر الهدف')
                             ->options(function (callable $get) {
                                 $type = $get('object_type');
                                 if ($type === 'App\\Models\\Category') {
                                     return Category::pluck('name', 'id');
+                                } elseif ($type === 'App\\Models\\Subject') {
+                                    return \App\Models\Subject::pluck('title', 'id');
                                 } elseif ($type === 'App\\Models\\Video') {
                                     return Video::pluck('name', 'id');
                                 }
                                 return [];
                             })
-                            ->required()
+                            ->required(fn (Forms\Get $get) => !$get('is_public'))
+                            ->hidden(fn (Forms\Get $get) => $get('is_public'))
                             ->reactive(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('الإعدادات')
+                Forms\Components\Section::make('Ek Ayarlar')
                     ->schema([
                         Forms\Components\Toggle::make('showInHomePage')
-                            ->label('عرض في الصفحة الرئيسية')
+                            ->label('Ana Sayfada Göster')
                             ->default(false),
                         Forms\Components\Toggle::make('active')
                             ->label('نشط')
                             ->default(true),
-                        Forms\Components\TextInput::make('visits')
-                            ->label('عدد التحميلات')
-                            ->numeric()
-                            ->default(0)
-                            ->disabled(),
-                    ])->columns(3),
+                    ])->columns(2),
             ]);
     }
 
@@ -100,34 +121,34 @@ class FileResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->label('الصورة')
+                    ->label('Resim')
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('اسم الملف')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('description')
-                    ->label('الوصف')
+                    ->label('Açıklama')
                     ->limit(50)
                     ->searchable(),
                 Tables\Columns\TextColumn::make('object_type')
-                    ->label('نوع التصنيف')
-                    ->formatStateUsing(fn ($state) => $state === 'App\\Models\\Category' ? 'فئة' : 'فيديو'),
+                    ->label('Sınıflandırma Türü')
+                    ->formatStateUsing(fn ($state) => $state === 'App\\Models\\Category' ? 'Kategori' : 'Video'),
                 Tables\Columns\TextColumn::make('object.name')
-                    ->label('التصنيف')
+                    ->label('Sınıflandırma')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('visits')
                     ->label('التحميلات')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('showInHomePage')
-                    ->label('الصفحة الرئيسية')
+                    ->label('Ana Sayfa')
                     ->boolean(),
                 Tables\Columns\IconColumn::make('active')
                     ->label('نشط')
                     ->boolean()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('تاريخ الإنشاء')
+                    ->label('Oluşturulma Tarihi')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -139,15 +160,15 @@ class FileResource extends Resource
                     ->trueLabel('نشط فقط')
                     ->falseLabel('غير نشط فقط'),
                 Tables\Filters\TernaryFilter::make('showInHomePage')
-                    ->label('الصفحة الرئيسية')
+                    ->label('Ana Sayfa')
                     ->boolean()
                     ->trueLabel('يظهر في الرئيسية')
                     ->falseLabel('لا يظهر في الرئيسية'),
                 Tables\Filters\SelectFilter::make('object_type')
-                    ->label('نوع التصنيف')
+                    ->label('Sınıflandırma Türü')
                     ->options([
-                        'App\\Models\\Category' => 'فئة',
-                        'App\\Models\\Video' => 'فيديو',
+                        'App\\Models\\Category' => 'Kategori',
+                        'App\\Models\\Video' => 'Video',
                     ]),
             ])
             ->actions([
@@ -187,21 +208,21 @@ class FileResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return true; // جميع المستخدمين يمكنهم رؤية الملفات
+        return auth()->user()->can('view files');
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()->hasRole(['admin', 'teacher']);
+        return auth()->user()->can('create files');
     }
 
     public static function canEdit($record): bool
     {
-        return auth()->user()->hasRole(['admin', 'teacher']);
+        return auth()->user()->can('edit files');
     }
 
     public static function canDelete($record): bool
     {
-        return auth()->user()->hasRole('admin');
+        return auth()->user()->can('delete files');
     }
 }

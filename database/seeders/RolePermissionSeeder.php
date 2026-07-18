@@ -106,6 +106,12 @@ class RolePermissionSeeder extends Seeder
             
             // تصدير بيانات الطلاب
             'export students',
+
+            // إدارة الجلسات المباشرة
+            'view live_sessions',
+            'create live_sessions',
+            'edit live_sessions',
+            'delete live_sessions',
         ];
 
         foreach ($permissions as $permission) {
@@ -116,6 +122,7 @@ class RolePermissionSeeder extends Seeder
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $teacherRole = Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']);
         $studentRole = Role::firstOrCreate(['name' => 'student', 'guard_name' => 'web']);
+        $parentRole = Role::firstOrCreate(['name' => 'parent', 'guard_name' => 'web']);
 
         // صلاحيات المدير (كل الصلاحيات)
         $adminRole->syncPermissions(Permission::all());
@@ -155,6 +162,11 @@ class RolePermissionSeeder extends Seeder
             'create sliders',
             'edit sliders',
             'delete sliders',
+            // الجلسات المباشرة
+            'view live_sessions',
+            'create live_sessions',
+            'edit live_sessions',
+            'delete live_sessions',
         ];
         $teacherRole->syncPermissions($teacherPermissions);
 
@@ -170,6 +182,7 @@ class RolePermissionSeeder extends Seeder
             'view next_recitations',
             'view categories',
             'view sliders',
+            'view live_sessions',
         ];
         $studentRole->syncPermissions($studentPermissions);
 
