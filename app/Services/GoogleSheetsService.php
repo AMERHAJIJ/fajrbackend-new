@@ -506,11 +506,13 @@ class GoogleSheetsService
                 'startCol' => $startCol
             ]);
 
-            // Fetch students from Database
+            // Fetch students from Database sorted alphabetically
             $students = \App\Models\User::role('student')
                 ->whereHas('subjectsAsStudent', function($query) use ($subjectId) {
                     $query->where('subject_id', $subjectId);
-                })->get();
+                })
+                ->orderBy('name', 'asc')
+                ->get();
 
             $updateRequests = [];
 
@@ -520,6 +522,8 @@ class GoogleSheetsService
                 $firstName = $parts[0] ?? '';
                 $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
                 $age = $student->birthday ? \Carbon\Carbon::parse($student->birthday)->age : 'غير محدد';
+
+                $shouldWriteProfile = false;
 
                 // Find matched row
                 $matchedRow = null;
@@ -543,6 +547,7 @@ class GoogleSheetsService
                         $sheetFamilyCell = trim($existingRows[$i][1] ?? '');
                         if ($sheetNameCell === '' && $sheetFamilyCell === '') {
                             $matchedRow = $rowNum;
+                            $shouldWriteProfile = true;
                             // Update local copy so next student doesn't take same row
                             $existingRows[$i][0] = $firstName;
                             $existingRows[$i][1] = $lastName;
@@ -602,8 +607,7 @@ class GoogleSheetsService
                 }
 
                 // If name is empty in sheet, write profile
-                $nameIsEmpty = empty(trim($existingRows[$matchedRow - $startRow][0] ?? '')) && empty(trim($existingRows[$matchedRow - $startRow][1] ?? ''));
-                if ($nameIsEmpty) {
+                if ($shouldWriteProfile) {
                     $updateRequests[] = new \Google\Service\Sheets\ValueRange([
                         'range' => "{$sheetName}!" . $this->numberToColumnLetter($nameColIndex) . "{$matchedRow}:" . $this->numberToColumnLetter($regColIndex) . "{$matchedRow}",
                         'values' => [[$firstName, $lastName, $age, 'مسجل']]
