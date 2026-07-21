@@ -30,18 +30,16 @@ class GoogleSheetsService
             // Set the service account credentials
             $serviceAccountPath = storage_path('app/public/google-service-account.json');
             
-            // Try to auto-create file from base64 if it doesn't exist
-            if (!file_exists($serviceAccountPath)) {
-                $base64Json = env('GOOGLE_SERVICE_ACCOUNT_JSON_BASE64');
-                if ($base64Json) {
-                    $decoded = base64_decode($base64Json);
-                    if ($decoded) {
-                        // Ensure directory exists
-                        if (!is_dir(dirname($serviceAccountPath))) {
-                            mkdir(dirname($serviceAccountPath), 0755, true);
-                        }
-                        file_put_contents($serviceAccountPath, $decoded);
+            // Try to auto-create file from base64 if env is set
+            $base64Json = env('GOOGLE_SERVICE_ACCOUNT_JSON_BASE64');
+            if ($base64Json) {
+                $decoded = base64_decode(str_replace(["\r", "\n", ' '], '', $base64Json));
+                if ($decoded) {
+                    // Ensure directory exists
+                    if (!is_dir(dirname($serviceAccountPath))) {
+                        mkdir(dirname($serviceAccountPath), 0755, true);
                     }
+                    file_put_contents($serviceAccountPath, $decoded);
                 }
             }
             
