@@ -40,7 +40,13 @@ try {
     $spreadsheetId = $spreadsheetIdProp->getValue($service);
     echo "Spreadsheet ID: $spreadsheetId\n";
     
-    $test = $service->testConnection();
+    $test = false;
+    try {
+        $sheetsService->spreadsheets->get($spreadsheetId);
+        $test = true;
+    } catch (\Exception $ex) {
+        echo "Spreadsheets Get ERROR: " . $ex->getMessage() . "\n";
+    }
     echo "Test Connection: " . ($test ? "SUCCESS" : "FAILED") . "\n";
 } catch (\Exception $e) {
     echo "ERROR: " . $e->getMessage() . "\n";
